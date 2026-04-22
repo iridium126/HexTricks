@@ -6,6 +6,7 @@ import at.petrak.hexcasting.api.casting.eval.OperationResult;
 import at.petrak.hexcasting.api.casting.eval.vm.CastingImage;
 import at.petrak.hexcasting.api.casting.eval.vm.SpellContinuation;
 import at.petrak.hexcasting.api.casting.iota.Iota;
+import at.petrak.hexcasting.api.casting.iota.ListIota;
 import at.petrak.hexcasting.api.casting.mishaps.Mishap;
 import at.petrak.hexcasting.api.casting.mishaps.MishapInvalidIota;
 import at.petrak.hexcasting.api.casting.mishaps.MishapNotEnoughArgs;
@@ -20,32 +21,59 @@ public enum OpExecuteTrick implements Action {
     INSTANCE;
 
     private List<Iota> execute(List<Iota> args, CastingEnvironment env) throws Mishap {
-        Iota input = args.getFirst();
-        if (!(input instanceof TrickIota trickIota)) {
-            throw MishapInvalidIota.of(input, 0, "class.hextricks_trick");
+        Iota first = args.get(0);
+        Iota second = args.get(1);
+
+        TrickIota trickIota;
+        ListIota listIota;
+
+        if (first instanceof TrickIota trick && second instanceof ListIota list) {
+            trickIota = trick;
+            listIota = list;
+        } else if (first instanceof ListIota list && second instanceof TrickIota trick) {
+            trickIota = trick;
+            listIota = list;
+        } else if (!(first instanceof TrickIota) && !(first instanceof ListIota)) {
+            throw MishapInvalidIota.of(first, 0, "class.hextricks_trick");
+        } else if (!(second instanceof ListIota) && !(second instanceof TrickIota)) {
+            throw MishapInvalidIota.of(second, 1, "class.hexcasting_list");
+        } else if (first instanceof TrickIota) {
+            throw MishapInvalidIota.of(second, 1, "class.hexcasting_list");
+        } else {
+            throw MishapInvalidIota.of(second, 1, "class.hextricks_trick");
         }
 
         if (!(env.getCastingEntity() instanceof ServerPlayer player)) {
             return List.of();
         }
 
-        boolean queued = TricksterBridge.tryQueueBySpellData(player, trickIota.getSpellData());
-        if (!queued) {
-            HexTricks.LOGGER.warn("Failed to execute Trickster spell fragment");
+        List<Iota> params = new ArrayList<>();
+        Iterable<Iota> iterable = listIota.subIotas();
+        if (iterable != null) {
+            for (Iota iota : iterable) {
+                params.add(iota);
+            }
         }
 
-        return List.of();
+        Iota result = TricksterBridge.tryExecuteBySpellData(player, trickIota.getSpellData(), params);
+        if (result == null) {
+            HexTricks.LOGGER.warn("Failed to execute Trickster spell fragment");
+            return List.of();
+        }
+
+        return List.of(result);
     }
 
     @Override
     public OperationResult operate(CastingEnvironment env, CastingImage image, SpellContinuation continuation) throws Mishap {
         List<Iota> stack = new ArrayList<>(image.getStack());
-        if (stack.isEmpty()) {
-            throw new MishapNotEnoughArgs(1, 0);
+        if (stack.size() < 2) {
+            throw new MishapNotEnoughArgs(2, stack.size());
         }
 
-        Iota arg = stack.removeLast();
-        stack.addAll(execute(List.of(arg), env));
+        Iota arg0 = stack.removeLast();
+        Iota arg1 = stack.removeLast();
+        stack.addAll(execute(List.of(arg0, arg1), env));
 
         CastingImage nextImage = image.copy(
                 stack,
