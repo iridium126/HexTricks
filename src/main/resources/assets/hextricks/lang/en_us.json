@@ -1,0 +1,16 @@
+{
+  "itemGroup.hextricks": "Example Mod Tab",
+  "block.hextricks.example_block": "Example Block",
+  "item.hextricks.example_item": "Example Item",
+
+  "hextricks.configuration.title": "HexTricks Configs",
+  "hextricks.configuration.section.hextricks.common.toml": "HexTricks Configs",
+  "hextricks.configuration.section.hextricks.common.toml.title": "HexTricks Configs",
+  "hextricks.configuration.items": "Item List",
+  "hextricks.configuration.logDirtBlock": "Log Dirt Block",
+  "hextricks.configuration.magicNumberIntroduction": "Magic Number Text",
+  "hextricks.configuration.magicNumber": "Magic Number",
+  "hextricks.iota.trick": "Trick: %s",
+  "hexcasting.action.hextricks:trick/execute": "Execute Trick Iota",
+  "hexcasting.mishap.invalid_value.class.hextricks_trick": "a Trick Iota"
+}
