@@ -20,6 +20,13 @@ public final class HexTricksActions {
                     OpExecuteTrick.INSTANCE
             )
     );
+    public static final ActionRegistryEntry READ_TRICK = make(
+            "trick/read",
+            new ActionRegistryEntry(
+                    HexPattern.fromAngles("wawqwqwqwqwq", HexDir.NORTH_EAST),
+                    OpReadTrickFromItem.INSTANCE
+            )
+    );
 
     private HexTricksActions() {
     }

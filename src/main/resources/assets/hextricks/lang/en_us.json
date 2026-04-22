@@ -12,5 +12,7 @@
   "hextricks.configuration.magicNumber": "Magic Number",
   "hextricks.iota.trick": "Trick: %s",
   "hexcasting.action.hextricks:trick/execute": "Execute Trick Iota",
+  "hexcasting.action.hextricks:trick/read": "Read Trick from Item",
+  "hexcasting.mishap.bad_item.trick.read": "an item inscribed with a Trickster spell",
   "hexcasting.mishap.invalid_value.class.hextricks_trick": "a Trick Iota"
 }

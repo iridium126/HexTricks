@@ -3,23 +3,26 @@ package com.iridium126.hextricks.casting;
 import at.petrak.hexcasting.api.casting.iota.Iota;
 import at.petrak.hexcasting.api.casting.iota.IotaType;
 import com.iridium126.hextricks.HexTricks;
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+
+import java.util.Objects;
 
 public class TrickIota extends Iota {
-    private final ResourceLocation trickId;
+    private final String spellData;
 
-    public TrickIota(ResourceLocation trickId) {
+    public TrickIota(String spellData) {
         super(() -> HexTricksIotaTypes.TRICK.get());
-        this.trickId = trickId;
+        this.spellData = spellData;
     }
 
-    public ResourceLocation getTrickId() {
-        return trickId;
+    public String getSpellData() {
+        return spellData;
     }
 
     @Override
@@ -31,27 +34,27 @@ public class TrickIota extends Iota {
     protected boolean toleratesOther(Iota that) {
         return typesMatch(this, that)
                 && that instanceof TrickIota other
-                && trickId.equals(other.trickId);
+                && spellData.equals(other.spellData);
     }
 
     @Override
     public int hashCode() {
-        return trickId.hashCode();
+        return Objects.hash(spellData);
     }
 
     @Override
     public Component display() {
-        return Component.translatable("hextricks.iota.trick", trickId.toString())
+        return Component.translatable("hextricks.iota.trick", "fragment")
                 .withStyle(ChatFormatting.AQUA);
     }
 
     public static final IotaType<TrickIota> TYPE = new IotaType<>() {
-        public static final MapCodec<TrickIota> CODEC = ResourceLocation.CODEC
-                .xmap(TrickIota::new, TrickIota::getTrickId)
-                .fieldOf("trick");
+        public static final MapCodec<TrickIota> CODEC = Codec.STRING
+                .xmap(TrickIota::new, TrickIota::getSpellData)
+                .fieldOf("spell_data");
 
         public static final StreamCodec<RegistryFriendlyByteBuf, TrickIota> STREAM_CODEC =
-                ResourceLocation.STREAM_CODEC.map(TrickIota::new, TrickIota::getTrickId).mapStream(buf -> buf);
+                ByteBufCodecs.STRING_UTF8.map(TrickIota::new, TrickIota::getSpellData).mapStream(buf -> buf);
 
         @Override
         public MapCodec<TrickIota> codec() {

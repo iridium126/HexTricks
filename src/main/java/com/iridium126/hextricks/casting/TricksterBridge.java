@@ -1,7 +1,7 @@
 package com.iridium126.hextricks.casting;
 
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -13,10 +13,10 @@ final class TricksterBridge {
     private static volatile boolean initialized = false;
     private static volatile boolean available = false;
 
-    private static Object tricksRegistry;
-    private static Method registryGetMethod;
-    private static Method trickGetPatternMethod;
-    private static Constructor<?> patternGlyphCtor;
+    private static Method fragmentGetMethod;
+    private static Method fragmentToBase64Method;
+    private static Method fragmentFromBase64Method;
+    private static Class<?> spellPartClass;
     private static Constructor<?> spellPartCtor;
     private static Field casterKeyField;
     private static Method componentKeyGetMethod;
@@ -25,20 +25,40 @@ final class TricksterBridge {
     private TricksterBridge() {
     }
 
-    static boolean tryQueueById(ServerPlayer player, String trickId) {
+    static String readSpellDataFromStack(ItemStack stack) {
         try {
             if (!ensureInit()) {
+                return null;
+            }
+
+            Object fragmentOptional = fragmentGetMethod.invoke(null, stack);
+            if (!(fragmentOptional instanceof Optional<?> optional) || optional.isEmpty()) {
+                return null;
+            }
+
+            Object fragment = optional.get();
+            Object base64 = fragmentToBase64Method.invoke(fragment);
+            if (!(base64 instanceof String s) || s.isBlank()) {
+                return null;
+            }
+            return s;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    static boolean tryQueueBySpellData(ServerPlayer player, String spellData) {
+        try {
+            if (!ensureInit() || spellData == null || spellData.isBlank()) {
                 return false;
             }
 
-            Object trick = registryGetMethod.invoke(tricksRegistry, ResourceLocation.parse(trickId));
-            if (trick == null) {
+            Object decoded = fragmentFromBase64Method.invoke(null, spellData);
+            if (decoded == null) {
                 return false;
             }
 
-            Object pattern = trickGetPatternMethod.invoke(trick);
-            Object patternGlyph = patternGlyphCtor.newInstance(pattern);
-            Object spellPart = spellPartCtor.newInstance(patternGlyph);
+            Object spellPart = spellPartClass.isInstance(decoded) ? decoded : spellPartCtor.newInstance(decoded);
 
             Object casterKey = casterKeyField.get(null);
             Object casterComponent = componentKeyGetMethod.invoke(casterKey, player);
@@ -59,20 +79,15 @@ final class TricksterBridge {
         }
         initialized = true;
         try {
-            Class<?> tricksClass = Class.forName("dev.enjarai.trickster.spell.trick.Tricks");
-            Field registryField = tricksClass.getField("REGISTRY");
-            tricksRegistry = registryField.get(null);
-            registryGetMethod = tricksRegistry.getClass().getMethod("get", Object.class);
+            Class<?> fragmentComponentClass = Class.forName("dev.enjarai.trickster.item.component.FragmentComponent");
+            Class<?> itemStackClass = Class.forName("net.minecraft.world.item.ItemStack");
+            fragmentGetMethod = fragmentComponentClass.getMethod("getFragment", itemStackClass);
 
-            Class<?> trickClass = Class.forName("dev.enjarai.trickster.spell.trick.Trick");
-            trickGetPatternMethod = trickClass.getMethod("getPattern");
-
-            Class<?> patternGlyphClass = Class.forName("dev.enjarai.trickster.spell.PatternGlyph");
-            Class<?> patternClass = Class.forName("dev.enjarai.trickster.spell.Pattern");
-            patternGlyphCtor = patternGlyphClass.getConstructor(patternClass);
-
-            Class<?> spellPartClass = Class.forName("dev.enjarai.trickster.spell.SpellPart");
             Class<?> fragmentClass = Class.forName("dev.enjarai.trickster.spell.Fragment");
+            fragmentToBase64Method = fragmentClass.getMethod("toBase64");
+            fragmentFromBase64Method = fragmentClass.getMethod("fromBase64", String.class);
+
+            spellPartClass = Class.forName("dev.enjarai.trickster.spell.SpellPart");
             spellPartCtor = spellPartClass.getConstructor(fragmentClass);
 
             Class<?> modEntityComponentsClass = Class.forName("dev.enjarai.trickster.cca.ModEntityComponents");
