@@ -2,7 +2,6 @@ package com.iridium126.hextricks.casting;
 
 import at.petrak.hexcasting.api.casting.iota.Iota;
 import at.petrak.hexcasting.api.casting.iota.IotaType;
-import com.iridium126.hextricks.HexTricks;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.ChatFormatting;

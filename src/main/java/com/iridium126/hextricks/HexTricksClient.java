@@ -1,6 +1,5 @@
 package com.iridium126.hextricks;
 
-import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
@@ -25,7 +24,7 @@ public class HexTricksClient {
     @SubscribeEvent
     static void onClientSetup(FMLClientSetupEvent event) {
         // Some client setup code
-        HexTricks.LOGGER.info("HELLO FROM CLIENT SETUP");
-        HexTricks.LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
+        //HexTricks.LOGGER.info("HELLO FROM CLIENT SETUP");
+        //HexTricks.LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
     }
 }
