@@ -1,5 +1,7 @@
 package com.iridium126.hextricks;
 
+import com.iridium126.hextricks.inline.client.SpellInlineMatcher;
+import com.iridium126.hextricks.inline.client.SpellInlineRenderer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
@@ -23,8 +25,9 @@ public class HexTricksClient {
 
     @SubscribeEvent
     static void onClientSetup(FMLClientSetupEvent event) {
-        // Some client setup code
-        //HexTricks.LOGGER.info("HELLO FROM CLIENT SETUP");
-        //HexTricks.LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
+        event.enqueueWork(() -> {
+            SpellInlineRenderer.register();
+            SpellInlineMatcher.register();
+        });
     }
 }

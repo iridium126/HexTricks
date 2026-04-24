@@ -43,8 +43,12 @@ public class TrickIota extends Iota {
 
     @Override
     public Component display() {
-        return Component.translatable("hextricks.iota.trick", "fragment")
-                .withStyle(ChatFormatting.AQUA);
+        if (spellData == null || spellData.isBlank()) {
+            return Component.translatable("hextricks.iota.trick");
+        }
+        return Component.translatable("hextricks.iota.trick")
+                .withStyle(ChatFormatting.AQUA)
+                .append(Component.literal("[spell." + spellData + "]"));
     }
 
     public static final IotaType<TrickIota> TYPE = new IotaType<>() {

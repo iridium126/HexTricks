@@ -1,16 +1,5 @@
 {
-  "itemGroup.hextricks": "Example Mod Tab",
-  "block.hextricks.example_block": "Example Block",
-  "item.hextricks.example_item": "Example Item",
-
-  "hextricks.configuration.title": "HexTricks Configs",
-  "hextricks.configuration.section.hextricks.common.toml": "HexTricks Configs",
-  "hextricks.configuration.section.hextricks.common.toml.title": "HexTricks Configs",
-  "hextricks.configuration.items": "Item List",
-  "hextricks.configuration.logDirtBlock": "Log Dirt Block",
-  "hextricks.configuration.magicNumberIntroduction": "Magic Number Text",
-  "hextricks.configuration.magicNumber": "Magic Number",
-  "hextricks.iota.trick": "Trick: %s",
+  "hextricks.iota.trick": "Trick: ",
   "hexcasting.action.hextricks:trick/execute": "Execute Trick Iota",
   "hexcasting.action.hextricks:trick/read": "Read Trick from Item",
   "hexcasting.mishap.bad_item.trick.read": "an item inscribed with a Trickster spell",
