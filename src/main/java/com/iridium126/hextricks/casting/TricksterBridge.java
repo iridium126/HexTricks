@@ -2,29 +2,40 @@ package com.iridium126.hextricks.casting;
 
 import at.petrak.hexcasting.api.casting.iota.BooleanIota;
 import at.petrak.hexcasting.api.casting.iota.DoubleIota;
+import at.petrak.hexcasting.api.casting.iota.EntityIota;
 import at.petrak.hexcasting.api.casting.iota.GarbageIota;
 import at.petrak.hexcasting.api.casting.iota.Iota;
+import at.petrak.hexcasting.api.casting.iota.IotaType;
 import at.petrak.hexcasting.api.casting.iota.ListIota;
 import at.petrak.hexcasting.api.casting.iota.NullIota;
 import at.petrak.hexcasting.api.casting.iota.Vec3Iota;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import com.mojang.serialization.JsonOps;
 import com.iridium126.hextricks.HexTricks;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import org.joml.Vector3d;
 
+import java.nio.charset.StandardCharsets;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 
-final class TricksterBridge {
+public final class TricksterBridge {
     private static final int MAX_SYNC_EXECUTION_STEPS = 4096;
+    private static final String IOTA_FRAGMENT_PREFIX = "hextricks:iota:";
     private static volatile boolean readInitialized = false;
     private static volatile boolean readAvailable = false;
     private static volatile boolean executeInitialized = false;
     private static volatile boolean executeAvailable = false;
+    private static volatile boolean registerInitialized = false;
+    private static volatile boolean registerAvailable = false;
 
     private static Method fragmentGetMethod;
     private static Method fragmentToBase64Method;
@@ -45,13 +56,23 @@ final class TricksterBridge {
     private static Class<?> listFragmentClass;
     private static Constructor<?> listFragmentCtor;
     private static Method listFragmentsMethod;
+    private static Class<?> entityFragmentClass;
+    private static Constructor<?> entityFragmentCtor;
+    private static Method entityUuidMethod;
+    private static Method entityNameMethod;
     private static Class<?> stringFragmentClass;
+    private static Constructor<?> stringFragmentCtor;
     private static Method stringValueMethod;
-    private static Class<?> voidFragmentClass;
-    private static Object voidFragmentInstance;
+    static Class<?> voidFragmentClass;
+    static Object voidFragmentInstance;
     private static Class<?> playerSpellSourceClass;
     private static Constructor<?> defaultSpellExecutorCtor;
     private static Method spellExecutorRunMethod;
+
+    static Method tricksRegisterMethod;
+    static Method patternOfMethod;
+    static Constructor<?> loadArgumentTrickCtor;
+    static Class<?> signatureClass;
 
     private TricksterBridge() {
     }
@@ -144,7 +165,7 @@ final class TricksterBridge {
         return readAvailable;
     }
 
-    private static synchronized boolean ensureExecuteInit() {
+    static synchronized boolean ensureExecuteInit() {
         if (executeInitialized) {
             return executeAvailable;
         }
@@ -176,7 +197,14 @@ final class TricksterBridge {
             listFragmentCtor = listFragmentClass.getConstructor(List.class);
             listFragmentsMethod = listFragmentClass.getMethod("fragments");
 
+            entityFragmentClass = Class.forName("dev.enjarai.trickster.spell.fragment.EntityFragment");
+            Class<?> textClass = Class.forName("net.minecraft.network.chat.Component");
+            entityFragmentCtor = entityFragmentClass.getConstructor(java.util.UUID.class, textClass);
+            entityUuidMethod = entityFragmentClass.getMethod("uuid");
+            entityNameMethod = entityFragmentClass.getMethod("name");
+
             stringFragmentClass = Class.forName("dev.enjarai.trickster.spell.fragment.StringFragment");
+            stringFragmentCtor = stringFragmentClass.getConstructor(String.class);
             stringValueMethod = stringFragmentClass.getMethod("value");
 
             voidFragmentClass = Class.forName("dev.enjarai.trickster.spell.fragment.VoidFragment");
@@ -195,6 +223,29 @@ final class TricksterBridge {
             executeAvailable = false;
         }
         return executeAvailable;
+    }
+
+    static synchronized boolean ensureRegisterInit() {
+        if (registerInitialized) {
+            return registerAvailable;
+        }
+        registerInitialized = true;
+        try {
+            Class<?> tricksClass = Class.forName("dev.enjarai.trickster.spell.trick.Tricks");
+            Class<?> patternClass = Class.forName("dev.enjarai.trickster.spell.Pattern");
+            Class<?> trickClass = Class.forName("dev.enjarai.trickster.spell.trick.Trick");
+            Class<?> loadArgumentClass = Class.forName("dev.enjarai.trickster.spell.trick.func.LoadArgumentTrick");
+            signatureClass = Class.forName("dev.enjarai.trickster.spell.type.Signature");
+
+            tricksRegisterMethod = tricksClass.getMethod("register", String.class, trickClass);
+            patternOfMethod = patternClass.getMethod("of", int[].class);
+            loadArgumentTrickCtor = loadArgumentClass.getConstructor(patternClass, int.class);
+
+            registerAvailable = true;
+        } catch (Throwable ignored) {
+            registerAvailable = false;
+        }
+        return registerAvailable;
     }
 
     private static Object newPlayerSpellSource(ServerPlayer player) {
@@ -220,7 +271,17 @@ final class TricksterBridge {
         return null;
     }
 
-    private static Object iotaToFragment(Iota iota) throws Throwable {
+    static Object makeTextLiteral(String text) {
+        try {
+            Class<?> textClass = Class.forName("net.minecraft.network.chat.Component");
+            Method literalMethod = textClass.getMethod("literal", String.class);
+            return literalMethod.invoke(null, text);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    static Object iotaToFragment(Iota iota) throws Throwable {
         if (iota instanceof DoubleIota number) {
             return numberFragmentCtor.newInstance(number.getDouble());
         }
@@ -230,6 +291,16 @@ final class TricksterBridge {
         if (iota instanceof Vec3Iota vec) {
             Vec3 v = vec.getVec3();
             return vectorFragmentCtor.newInstance(new Vector3d(v.x, v.y, v.z));
+        }
+        if (iota instanceof EntityIota entityIota) {
+            String displayName = entityIota.getEntityName() != null
+                    ? entityIota.getEntityName().getString()
+                    : entityIota.getEntityId().toString();
+            Object text = makeTextLiteral(displayName);
+            if (text == null) {
+                return null;
+            }
+            return entityFragmentCtor.newInstance(entityIota.getEntityId(), text);
         }
         if (iota instanceof ListIota list) {
             List<Object> children = new ArrayList<>();
@@ -251,10 +322,60 @@ final class TricksterBridge {
         if (iota instanceof TrickIota trick) {
             return fragmentFromBase64Method.invoke(null, trick.getSpellData());
         }
+
+        Object fallback = iotaToStringFragment(iota);
+        if (fallback != null) {
+            return fallback;
+        }
+
+        HexTricks.LOGGER.warn("Unsupported iota type for Trickster conversion: {}", iota.getClass().getName());
         return null;
     }
 
-    @SuppressWarnings("unchecked")
+    private static Object iotaToStringFragment(Iota iota) {
+        if (stringFragmentCtor == null || iota == null) {
+            return null;
+        }
+
+        try {
+            String payload = encodeIotaPayload(iota);
+            if (payload == null) {
+                return null;
+            }
+
+            return stringFragmentCtor.newInstance(IOTA_FRAGMENT_PREFIX + payload);
+        } catch (Throwable t) {
+            HexTricks.LOGGER.warn("Failed to build fallback StringFragment from iota {}", iota.getClass().getName(), t);
+            return null;
+        }
+    }
+
+    private static String encodeIotaPayload(Iota iota) {
+        try {
+            Optional<JsonElement> encoded = IotaType.TYPED_CODEC.encodeStart(JsonOps.INSTANCE, iota).result();
+            if (encoded.isEmpty()) {
+                return null;
+            }
+            byte[] bytes = encoded.get().toString().getBytes(StandardCharsets.UTF_8);
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        } catch (Throwable t) {
+            HexTricks.LOGGER.warn("Failed to encode iota payload for bridge fragment: {}", iota.getClass().getName(), t);
+            return null;
+        }
+    }
+
+    private static Iota decodeIotaPayload(String payload) {
+        try {
+            byte[] bytes = Base64.getUrlDecoder().decode(payload);
+            String json = new String(bytes, StandardCharsets.UTF_8);
+            JsonElement element = JsonParser.parseString(json);
+            return IotaType.TYPED_CODEC.parse(JsonOps.INSTANCE, element).result().orElse(null);
+        } catch (Throwable t) {
+            HexTricks.LOGGER.warn("Failed to decode iota payload from bridge fragment", t);
+            return null;
+        }
+    }
+
     private static Iota fragmentToIota(Object fragment) throws Throwable {
         if (fragment == null || voidFragmentClass.isInstance(fragment)) {
             return new NullIota();
@@ -295,9 +416,31 @@ final class TricksterBridge {
             }
             return new ListIota(converted);
         }
+        if (entityFragmentClass.isInstance(fragment)) {
+            Object rawUuid = entityUuidMethod.invoke(fragment);
+            if (rawUuid instanceof java.util.UUID uuid) {
+                Component entityName = null;
+                Object rawName = entityNameMethod.invoke(fragment);
+                if (rawName != null) {
+                    Object rawString = rawName.getClass().getMethod("getString").invoke(rawName);
+                    if (rawString instanceof String s) {
+                        entityName = Component.literal(s);
+                    }
+                }
+                return new EntityIota(uuid, entityName);
+            }
+            return null;
+        }
         if (stringFragmentClass.isInstance(fragment)) {
             Object raw = stringValueMethod.invoke(fragment);
-            if (raw instanceof String) {
+            if (raw instanceof String value) {
+                if (value.startsWith(IOTA_FRAGMENT_PREFIX)) {
+                    String payload = value.substring(IOTA_FRAGMENT_PREFIX.length());
+                    Iota decoded = decodeIotaPayload(payload);
+                    if (decoded != null) {
+                        return decoded;
+                    }
+                }
                 return new NullIota();
             }
         }

@@ -1,5 +1,6 @@
 {
   "hextricks.iota.trick": "Trick: ",
+  "trickster.trick.hextricks.read_iota_offhand": "Read Offhand Iota",
   "hexcasting.action.hextricks:trick/execute": "Execute Trick Iota",
   "hexcasting.action.hextricks:trick/read": "Read Trick from Item",
   "hexcasting.mishap.bad_item.trick.read": "an item inscribed with a Trickster spell",

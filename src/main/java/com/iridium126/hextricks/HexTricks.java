@@ -4,7 +4,9 @@ import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 import com.iridium126.hextricks.casting.HexTricksIotaTypes;
+import com.iridium126.hextricks.casting.ReadIotaOffhandTrickRegister;
 import com.iridium126.hextricks.casting.HexTricksActions;
+import com.iridium126.hextricks.casting.TricksterBridge;
 import com.iridium126.hextricks.inline.ModInlineDataTypes;
 
 import at.petrak.hexcasting.common.lib.HexRegistries;
@@ -31,6 +33,7 @@ public class HexTricks {
     public HexTricks(IEventBus modEventBus, ModContainer modContainer) {
         // Register custom HexCasting iota types for this addon
         HexTricksIotaTypes.register(modEventBus);
+        ReadIotaOffhandTrickRegister.register();
         ModInlineDataTypes.init();
 
         // Register the item to a creative tab
