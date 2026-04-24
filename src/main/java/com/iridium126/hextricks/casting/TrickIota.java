@@ -44,7 +44,8 @@ public class TrickIota extends Iota {
     @Override
     public Component display() {
         if (spellData == null || spellData.isBlank()) {
-            return Component.translatable("hextricks.iota.trick");
+            return Component.translatable("hextricks.iota.trick")
+                    .withStyle(ChatFormatting.AQUA);
         }
         return Component.translatable("hextricks.iota.trick")
                 .withStyle(ChatFormatting.AQUA)

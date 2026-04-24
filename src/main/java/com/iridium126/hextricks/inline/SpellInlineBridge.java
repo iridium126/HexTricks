@@ -13,7 +13,6 @@ public final class SpellInlineBridge {
     private static Class<?> fragmentClass;
     private static Class<?> spellPartClass;
     private static Method fragmentFromBase64Method;
-    private static Method fragmentToBase64Method;
     private static Constructor<?> spellPartCtor;
     private static Method spellPartSubPartsMethod;
     private static Field spellPartSubPartsField;
@@ -72,7 +71,6 @@ public final class SpellInlineBridge {
             spellPartClass = Class.forName("dev.enjarai.trickster.spell.SpellPart");
 
             fragmentFromBase64Method = fragmentClass.getMethod("fromBase64", String.class);
-            fragmentToBase64Method = fragmentClass.getMethod("toBase64");
             spellPartCtor = spellPartClass.getConstructor(fragmentClass);
 
             try {

@@ -31,7 +31,7 @@ final class SpellCircleRenderBridge {
 
         float circleSize = SpellInlineBridge.hasSubParts(spellPart) ? 30f : 50f;
         float centerX = width / 2f;
-        float centerY = height / 2f;
+        float centerY = height / 10f;
 
         try {
             invokeNoArg(matrices, "pushPose", "push");

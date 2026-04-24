@@ -34,7 +34,7 @@ public final class SpellInlineMatcher {
 
     private static float scaleFromSeparator(String separator) {
         return switch (separator) {
-            case "." -> 0.1f;
+            case "." -> 0.3f;
             case "," -> 0.75f;
             case "!" -> 1.5f;
             case "+" -> 2f;
