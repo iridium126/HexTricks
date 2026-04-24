@@ -1,17 +1,6 @@
 package com.iridium126.hextricks.casting;
 
-import at.petrak.hexcasting.api.casting.iota.BooleanIota;
-import at.petrak.hexcasting.api.casting.iota.DoubleIota;
-import at.petrak.hexcasting.api.casting.iota.EntityIota;
-import at.petrak.hexcasting.api.casting.iota.GarbageIota;
-import at.petrak.hexcasting.api.casting.iota.Iota;
-import at.petrak.hexcasting.api.casting.iota.IotaType;
-import at.petrak.hexcasting.api.casting.iota.ListIota;
-import at.petrak.hexcasting.api.casting.iota.NullIota;
-import at.petrak.hexcasting.api.casting.iota.Vec3Iota;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
-import com.mojang.serialization.JsonOps;
+import at.petrak.hexcasting.api.casting.iota.*;
 import com.iridium126.hextricks.HexTricks;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.Vec3;
@@ -19,17 +8,14 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import org.joml.Vector3d;
 
-import java.nio.charset.StandardCharsets;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 
 public final class TricksterBridge {
     private static final int MAX_SYNC_EXECUTION_STEPS = 4096;
-    private static final String IOTA_FRAGMENT_PREFIX = "hextricks:iota:";
     private static volatile boolean readInitialized = false;
     private static volatile boolean readAvailable = false;
     private static volatile boolean executeInitialized = false;
@@ -62,7 +48,6 @@ public final class TricksterBridge {
     private static Method entityNameMethod;
     private static Class<?> stringFragmentClass;
     private static Constructor<?> stringFragmentCtor;
-    private static Method stringValueMethod;
     static Class<?> voidFragmentClass;
     static Object voidFragmentInstance;
     private static Class<?> playerSpellSourceClass;
@@ -117,7 +102,7 @@ public final class TricksterBridge {
             }
             List<Object> tricksterArgs = new ArrayList<>(arguments.size());
             for (Iota arg : arguments) {
-                Object fragmentArg = iotaToFragment(arg);
+                Object fragmentArg = iotaToFragment(arg, false);
                 if (fragmentArg == null) {
                     HexTricks.LOGGER.warn("Unsupported iota argument type for Trickster execution: {}", arg.getClass().getName());
                     return null;
@@ -205,7 +190,6 @@ public final class TricksterBridge {
 
             stringFragmentClass = Class.forName("dev.enjarai.trickster.spell.fragment.StringFragment");
             stringFragmentCtor = stringFragmentClass.getConstructor(String.class);
-            stringValueMethod = stringFragmentClass.getMethod("value");
 
             voidFragmentClass = Class.forName("dev.enjarai.trickster.spell.fragment.VoidFragment");
             voidFragmentInstance = voidFragmentClass.getField("INSTANCE").get(null);
@@ -281,7 +265,20 @@ public final class TricksterBridge {
         }
     }
 
-    static Object iotaToFragment(Iota iota) throws Throwable {
+    static Object stringToFragment(String value) {
+        if (stringFragmentCtor == null) {
+            return null;
+        }
+
+        try {
+            return stringFragmentCtor.newInstance(value);
+        } catch (Throwable t) {
+            HexTricks.LOGGER.warn("Failed to build Trickster StringFragment", t);
+            return null;
+        }
+    }
+
+    static Object iotaToFragment(Iota iota, boolean reserveList) throws Throwable {
         if (iota instanceof DoubleIota number) {
             return numberFragmentCtor.newInstance(number.getDouble());
         }
@@ -303,18 +300,24 @@ public final class TricksterBridge {
             return entityFragmentCtor.newInstance(entityIota.getEntityId(), text);
         }
         if (iota instanceof ListIota list) {
-            List<Object> children = new ArrayList<>();
-            Iterable<Iota> entries = list.subIotas();
-            if (entries != null) {
-                for (Iota entry : entries) {
-                    Object converted = iotaToFragment(entry);
-                    if (converted == null) {
-                        return null;
+            if (reserveList) {
+                String display = list.display().getString();
+                Object stringFragment = TricksterBridge.stringToFragment(display);
+                return stringFragment != null ? stringFragment : TricksterBridge.voidFragmentInstance;
+            } else {
+                List<Object> children = new ArrayList<>();
+                Iterable<Iota> entries = list.subIotas();
+                if (entries != null) {
+                    for (Iota entry : entries) {
+                        Object converted = iotaToFragment(entry, false);
+                        if (converted == null) {
+                            return null;
+                        }
+                        children.add(converted);
                     }
-                    children.add(converted);
                 }
+                return listFragmentCtor.newInstance(children);
             }
-            return listFragmentCtor.newInstance(children);
         }
         if (iota instanceof NullIota || iota instanceof GarbageIota) {
             return voidFragmentInstance;
@@ -322,58 +325,14 @@ public final class TricksterBridge {
         if (iota instanceof TrickIota trick) {
             return fragmentFromBase64Method.invoke(null, trick.getSpellData());
         }
-
-        Object fallback = iotaToStringFragment(iota);
-        if (fallback != null) {
-            return fallback;
+        if (iota instanceof PatternIota pattern) {
+            String display = pattern.display().getString();
+            Object stringFragment = TricksterBridge.stringToFragment(display);
+            return stringFragment != null ? stringFragment : TricksterBridge.voidFragmentInstance;
         }
 
         HexTricks.LOGGER.warn("Unsupported iota type for Trickster conversion: {}", iota.getClass().getName());
         return null;
-    }
-
-    private static Object iotaToStringFragment(Iota iota) {
-        if (stringFragmentCtor == null || iota == null) {
-            return null;
-        }
-
-        try {
-            String payload = encodeIotaPayload(iota);
-            if (payload == null) {
-                return null;
-            }
-
-            return stringFragmentCtor.newInstance(IOTA_FRAGMENT_PREFIX + payload);
-        } catch (Throwable t) {
-            HexTricks.LOGGER.warn("Failed to build fallback StringFragment from iota {}", iota.getClass().getName(), t);
-            return null;
-        }
-    }
-
-    private static String encodeIotaPayload(Iota iota) {
-        try {
-            Optional<JsonElement> encoded = IotaType.TYPED_CODEC.encodeStart(JsonOps.INSTANCE, iota).result();
-            if (encoded.isEmpty()) {
-                return null;
-            }
-            byte[] bytes = encoded.get().toString().getBytes(StandardCharsets.UTF_8);
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-        } catch (Throwable t) {
-            HexTricks.LOGGER.warn("Failed to encode iota payload for bridge fragment: {}", iota.getClass().getName(), t);
-            return null;
-        }
-    }
-
-    private static Iota decodeIotaPayload(String payload) {
-        try {
-            byte[] bytes = Base64.getUrlDecoder().decode(payload);
-            String json = new String(bytes, StandardCharsets.UTF_8);
-            JsonElement element = JsonParser.parseString(json);
-            return IotaType.TYPED_CODEC.parse(JsonOps.INSTANCE, element).result().orElse(null);
-        } catch (Throwable t) {
-            HexTricks.LOGGER.warn("Failed to decode iota payload from bridge fragment", t);
-            return null;
-        }
     }
 
     private static Iota fragmentToIota(Object fragment) throws Throwable {
@@ -432,17 +391,7 @@ public final class TricksterBridge {
             return null;
         }
         if (stringFragmentClass.isInstance(fragment)) {
-            Object raw = stringValueMethod.invoke(fragment);
-            if (raw instanceof String value) {
-                if (value.startsWith(IOTA_FRAGMENT_PREFIX)) {
-                    String payload = value.substring(IOTA_FRAGMENT_PREFIX.length());
-                    Iota decoded = decodeIotaPayload(payload);
-                    if (decoded != null) {
-                        return decoded;
-                    }
-                }
-                return new NullIota();
-            }
+            return new NullIota();
         }
         return new NullIota();
     }

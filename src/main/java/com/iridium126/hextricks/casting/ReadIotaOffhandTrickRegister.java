@@ -70,7 +70,7 @@ public final class ReadIotaOffhandTrickRegister {
                         return TricksterBridge.voidFragmentInstance;
                     }
 
-                    Object fragment = TricksterBridge.iotaToFragment(iota);
+                    Object fragment = TricksterBridge.iotaToFragment(iota, true);
                     return fragment != null ? fragment : TricksterBridge.voidFragmentInstance;
                 } catch (Throwable t) {
                     HexTricks.LOGGER.warn("Trickster offhand iota read trick failed", t);
