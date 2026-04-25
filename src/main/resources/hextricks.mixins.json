@@ -5,6 +5,9 @@
   "mixins": [
     "StringFragmentMixin"
   ],
+  "client": [
+    "FragmentRendererMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   },

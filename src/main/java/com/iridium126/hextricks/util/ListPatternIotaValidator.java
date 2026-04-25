@@ -22,6 +22,11 @@ public final class ListPatternIotaValidator {
         return isListIotaPureText(stripped);
     }
 
+    public static boolean isListIotaDisplay(@NotNull String input) {
+        String stripped = FORMATTING_CODE_REGEX.matcher(input).replaceAll("");
+        return isListIotaPureText(stripped);
+    }
+
     private static boolean isListIotaPureText(@NotNull String text) {
         if (text.length() < 2) {
             return false;
