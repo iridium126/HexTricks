@@ -168,9 +168,10 @@ dependencies {
     // Add Connector to the launch classpath
     additionalRuntimeClasspath "org.sinytra:connector:2.0.0-beta.10+1.21.1"
     // Add FFAPI dependency
+    compileOnly "curse.maven:forgified-fabric-api-889079:7658611"
     runtimeOnly "curse.maven:forgified-fabric-api-889079:7658611"
     // Install desired Fabric mods. Make sure they remain unmapped at runtime
-    runtimeOnly "curse.maven:trickster-1137971:7776022"
+    implementation "curse.maven:trickster-1137971:7776022"
     runtimeOnly "curse.maven:cicada-989574:7068950"
     runtimeOnly "curse.maven:lavender-api-962916:6107175"
     runtimeOnly "curse.maven:cardinal-components-api-318449:7250871"

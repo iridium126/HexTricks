@@ -6,7 +6,6 @@ import com.mojang.logging.LogUtils;
 import com.iridium126.hextricks.casting.HexTricksIotaTypes;
 import com.iridium126.hextricks.casting.ReadIotaOffhandTrickRegister;
 import com.iridium126.hextricks.casting.HexTricksActions;
-import com.iridium126.hextricks.casting.TricksterBridge;
 import com.iridium126.hextricks.inline.ModInlineDataTypes;
 
 import at.petrak.hexcasting.common.lib.HexRegistries;

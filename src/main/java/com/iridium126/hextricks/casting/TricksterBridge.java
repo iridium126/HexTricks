@@ -309,7 +309,7 @@ public final class TricksterBridge {
                 Iterable<Iota> entries = list.subIotas();
                 if (entries != null) {
                     for (Iota entry : entries) {
-                        Object converted = iotaToFragment(entry, false);
+                        Object converted = iotaToFragment(entry, true);
                         if (converted == null) {
                             return null;
                         }
