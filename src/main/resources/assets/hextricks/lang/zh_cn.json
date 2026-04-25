@@ -1,0 +1,9 @@
+{
+  "hextricks.iota.trick": "戏法：",
+  "trickster.trick.hextricks.read_iota_offhand": "读取副手 Iota",
+  "trickster.trick.hextricks.run_list_pattern_iota_string": "运行列表/图案 Iota 字符串",
+  "hexcasting.action.hextricks:trick/execute": "执行 Trick Iota",
+  "hexcasting.action.hextricks:trick/read": "从物品读取 Trick",
+  "hexcasting.mishap.bad_item.trick.read": "刻写了 Trickster 法术的物品",
+  "hexcasting.mishap.invalid_value.class.hextricks_trick": "一个 Trick Iota"
+}
