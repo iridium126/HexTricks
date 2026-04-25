@@ -45,10 +45,10 @@ public class TrickIota extends Iota {
     public Component display() {
         if (spellData == null || spellData.isBlank()) {
             return Component.translatable("hextricks.iota.trick")
-                    .withStyle(ChatFormatting.AQUA);
+                    .withStyle(ChatFormatting.LIGHT_PURPLE);
         }
         return Component.translatable("hextricks.iota.trick")
-                .withStyle(ChatFormatting.AQUA)
+                .withStyle(ChatFormatting.LIGHT_PURPLE)
                 .append(Component.literal("[spell." + spellData + "]"));
     }
 

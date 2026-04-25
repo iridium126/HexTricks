@@ -290,9 +290,14 @@ public final class TricksterBridge {
             return vectorFragmentCtor.newInstance(new Vector3d(v.x, v.y, v.z));
         }
         if (iota instanceof EntityIota entityIota) {
-            String displayName = entityIota.getEntityName() != null
-                    ? entityIota.getEntityName().getString()
-                    : entityIota.getEntityId().toString();
+            String displayName;
+            if (entityIota.getEntityName() != null) {
+                String name = entityIota.getEntityName().getString();
+                int colonIndex = name.indexOf(":");
+                displayName = colonIndex > 0 ? name.substring(0, colonIndex) : name;
+            } else {
+                displayName = Component.translatable("hexcasting.spelldata.entity.whoknows").getString();
+            }
             Object text = makeTextLiteral(displayName);
             if (text == null) {
                 return null;

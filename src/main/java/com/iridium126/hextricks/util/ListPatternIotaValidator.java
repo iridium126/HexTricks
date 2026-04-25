@@ -1,37 +1,35 @@
 package com.iridium126.hextricks.util;
 
 import org.jetbrains.annotations.NotNull;
-
 import java.util.regex.Pattern;
 
 public final class ListPatternIotaValidator {
-    // PatternIota uses GOLD (§6) formatting
+    private static final Pattern FORMATTING_CODE_REGEX = Pattern.compile("(?i)\\u00A7[0-9A-FK-OR]");
     private static final Pattern PATTERN_IOTA_REGEX = Pattern.compile(
-            "^§6(EAST|WEST|NORTHEAST|NORTHWEST|SOUTHEAST|SOUTHWEST) [aqweds]*$"
+            "^(.* )?HexPattern\\[[A-Z_]+, [aqweds]*\\]$"
     );
 
     private ListPatternIotaValidator() {
     }
 
     public static boolean isListOrPatternIotaDisplay(@NotNull String input) {
-        if (PATTERN_IOTA_REGEX.matcher(input).matches()) {
+        String stripped = FORMATTING_CODE_REGEX.matcher(input).replaceAll("");
+        
+        if (PATTERN_IOTA_REGEX.matcher(stripped).matches()) {
             return true;
         }
 
-        return isListIotaDisplay(input);
+        return isListIotaPureText(stripped);
     }
 
-    /**
-     * Check if input matches ListIota.display().getString() format.
-     * ListIota uses DARK_PURPLE (§5) and wraps content in [].
-     */
-    private static boolean isListIotaDisplay(@NotNull String text) {
-        // Must start with §5[ and end with ]
-        if (!text.startsWith("§5[") || !text.endsWith("]")) {
+    private static boolean isListIotaPureText(@NotNull String text) {
+        if (text.length() < 2) {
+            return false;
+        }
+        if (text.charAt(0) != '[' || text.charAt(text.length() - 1) != ']') {
             return false;
         }
 
-        // Check bracket balance in the content (excluding the outer §5[ and ])
         int bracketDepth = 0;
         for (char c : text.toCharArray()) {
             if (c == '[') {
