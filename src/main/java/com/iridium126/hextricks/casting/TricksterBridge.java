@@ -1,9 +1,13 @@
 package com.iridium126.hextricks.casting;
 
+import at.petrak.hexcasting.api.casting.eval.vm.SpellContinuation;
 import at.petrak.hexcasting.api.casting.iota.*;
 import com.iridium126.hextricks.HexTricks;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.Vec3;
+import com.iridium126.hextricks.util.ListPatternIotaParser;
+import com.iridium126.hextricks.util.ListPatternIotaValidator;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import org.joml.Vector3d;
@@ -16,6 +20,9 @@ import java.util.Optional;
 
 public final class TricksterBridge {
     private static final int MAX_SYNC_EXECUTION_STEPS = 4096;
+    private static final String LIST_ENTITY_METADATA_PREFIX = "<hextricks:entity:";
+    private static final String LIST_CONTINUATION_METADATA_PREFIX = "<hextricks:continuation:";
+    private static final String LIST_METADATA_SUFFIX = ">";
     private static volatile boolean readInitialized = false;
     private static volatile boolean readAvailable = false;
     private static volatile boolean executeInitialized = false;
@@ -46,6 +53,7 @@ public final class TricksterBridge {
     private static Constructor<?> entityFragmentCtor;
     private static Method entityUuidMethod;
     private static Method entityNameMethod;
+    private static Method stringValueMethod;
     private static Class<?> stringFragmentClass;
     private static Constructor<?> stringFragmentCtor;
     static Class<?> voidFragmentClass;
@@ -190,6 +198,7 @@ public final class TricksterBridge {
 
             stringFragmentClass = Class.forName("dev.enjarai.trickster.spell.fragment.StringFragment");
             stringFragmentCtor = stringFragmentClass.getConstructor(String.class);
+            stringValueMethod = stringFragmentClass.getMethod("value");
 
             voidFragmentClass = Class.forName("dev.enjarai.trickster.spell.fragment.VoidFragment");
             voidFragmentInstance = voidFragmentClass.getField("INSTANCE").get(null);
@@ -306,7 +315,7 @@ public final class TricksterBridge {
         }
         if (iota instanceof ListIota list) {
             if (reserveList) {
-                String display = list.display().getString();
+                String display = augmentReservedListDisplay(list, list.display().getString());
                 Object stringFragment = TricksterBridge.stringToFragment(display);
                 return stringFragment != null ? stringFragment : TricksterBridge.voidFragmentInstance;
             } else {
@@ -314,7 +323,7 @@ public final class TricksterBridge {
                 Iterable<Iota> entries = list.subIotas();
                 if (entries != null) {
                     for (Iota entry : entries) {
-                        Object converted = iotaToFragment(entry, true);
+                        Object converted = iotaToFragment(entry, false);
                         if (converted == null) {
                             return null;
                         }
@@ -338,6 +347,99 @@ public final class TricksterBridge {
 
         HexTricks.LOGGER.warn("Unsupported iota type for Trickster conversion: {}", iota.getClass().getName());
         return null;
+    }
+
+    private static String augmentReservedListDisplay(ListIota list, String display) {
+        if (display == null || display.isEmpty()) {
+            return display;
+        }
+
+        List<DisplayMetadataInsertion> insertions = new ArrayList<>();
+        collectReservedListMetadata(list, insertions);
+        if (insertions.isEmpty()) {
+            return display;
+        }
+
+        StringBuilder builder = new StringBuilder(display);
+        int searchFrom = 0;
+        int offset = 0;
+        for (DisplayMetadataInsertion insertion : insertions) {
+            String token = insertion.displayToken();
+            if (token == null || token.isEmpty()) {
+                continue;
+            }
+
+            int tokenIndex = display.indexOf(token, searchFrom);
+            if (tokenIndex < 0) {
+                continue;
+            }
+
+            int insertIndex = tokenIndex + token.length() + offset;
+            builder.insert(insertIndex, insertion.suffix());
+            searchFrom = tokenIndex + token.length();
+            offset += insertion.suffix().length();
+        }
+
+        return builder.toString();
+    }
+
+    private static void collectReservedListMetadata(Iota iota, List<DisplayMetadataInsertion> insertions) {
+        if (iota instanceof EntityIota entityIota) {
+            String entityId = String.valueOf(entityIota.getEntityId());
+            insertions.add(new DisplayMetadataInsertion(
+                    entityIota.display().getString(),
+                    LIST_ENTITY_METADATA_PREFIX + sanitizeMetadataValue(entityId) + LIST_METADATA_SUFFIX
+            ));
+        }
+
+        if (iota instanceof ContinuationIota continuationIota) {
+            String continuationPayload = serializeContinuationMetadata(continuationIota.getContinuation());
+            insertions.add(new DisplayMetadataInsertion(
+                    iota.display().getString(),
+                    LIST_CONTINUATION_METADATA_PREFIX
+                            + sanitizeMetadataValue(continuationPayload)
+                            + LIST_METADATA_SUFFIX
+            ));
+        }
+
+        if (iota instanceof ListIota listIota) {
+            Iterable<Iota> entries = listIota.subIotas();
+            if (entries != null) {
+                for (Iota entry : entries) {
+                    collectReservedListMetadata(entry, insertions);
+                }
+            }
+        }
+    }
+
+    private static String serializeContinuationMetadata(SpellContinuation continuation) {
+        try {
+            Object encoded = SpellContinuation.getCODEC().encodeStart(JsonOps.INSTANCE, continuation).result().orElse(null);
+            if (encoded != null) {
+                return encoded.toString();
+            }
+        } catch (Throwable t) {
+            HexTricks.LOGGER.warn("Failed to encode continuation metadata", t);
+        }
+        return String.valueOf(continuation);
+    }
+
+    private static String sanitizeMetadataValue(String value) {
+        if (value == null) {
+            return "null";
+        }
+        return value
+                .replace("\\", "\\\\")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
+                .replace(",", "\\u002C")
+                .replace("[", "\\u005B")
+                .replace("]", "\\u005D")
+                .replace("<", "\\u003C")
+                .replace(">", "\\u003E");
+    }
+
+    private record DisplayMetadataInsertion(String displayToken, String suffix) {
     }
 
     private static Iota fragmentToIota(Object fragment) throws Throwable {
@@ -396,6 +498,10 @@ public final class TricksterBridge {
             return null;
         }
         if (stringFragmentClass.isInstance(fragment)) {
+            Object value = stringValueMethod.invoke(fragment);
+            if (value instanceof String s && ListPatternIotaValidator.isListOrPatternIotaDisplay(s)) {
+                return ListPatternIotaParser.restoreFromDisplay(s).orElse(new NullIota());
+            }
             return new NullIota();
         }
         return new NullIota();
