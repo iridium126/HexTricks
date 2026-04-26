@@ -16,14 +16,14 @@ public final class HexTricksActions {
     public static final ActionRegistryEntry EXEC_TRICK = make(
             "trick/execute",
             new ActionRegistryEntry(
-                    HexPattern.fromAngles("wdwewawqwqw", HexDir.NORTH_EAST),
+                    HexPattern.fromAngles("wdwewawqwqw", HexDir.SOUTH_EAST),
                     OpExecuteTrick.INSTANCE
             )
     );
     public static final ActionRegistryEntry READ_TRICK = make(
             "trick/read",
             new ActionRegistryEntry(
-                    HexPattern.fromAngles("wawqwqwqwqwq", HexDir.NORTH_EAST),
+                    HexPattern.fromAngles("wawqwqwqwqwq", HexDir.EAST),
                     OpReadTrickFromItem.INSTANCE
             )
     );

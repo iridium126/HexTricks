@@ -160,15 +160,15 @@ public final class ListPatternIotaParser {
         char c = content.charAt(index);
         if (c == '[') {
             int end = findMatchingBracket(content, index);
-            if (end < 0) {
-                return null;
+            
+            if (end >= 0 && content.charAt(end + 1) != '<') { 
+                ListIota nested = parseListToken(content.substring(index, end + 1));
+                if (nested == null) {
+                    return null;
+                }
+                return new ParseResult(nested, end + 1);
             }
-
-            ListIota nested = parseListToken(content.substring(index, end + 1));
-            if (nested == null) {
-                return null;
-            }
-            return new ParseResult(nested, end + 1);
+            // If not a valid list, fall through to parseScalarElement
         }
 
         if (content.startsWith(PATTERN_PREFIX, index)) {
@@ -208,6 +208,8 @@ public final class ListPatternIotaParser {
 
     private static int findScalarElementEnd(String content, int index) {
         int parenthesisDepth = 0;
+        int bracketDepth = 0;
+        int angleDepth = 0;
         for (int i = index; i < content.length(); i++) {
             char c = content.charAt(i);
             if (c == '(') {
@@ -221,11 +223,33 @@ public final class ListPatternIotaParser {
                 }
                 continue;
             }
-            if (c == ',' && parenthesisDepth == 0) {
+            if (c == '[') {
+                bracketDepth++;
+                continue;
+            }
+            if (c == ']') {
+                bracketDepth--;
+                if (bracketDepth < 0) {
+                    return -1;
+                }
+                continue;
+            }
+            if (c == '<') {
+                angleDepth++;
+                continue;
+            }
+            if (c == '>') {
+                angleDepth--;
+                if (angleDepth < 0) {
+                    return -1;
+                }
+                continue;
+            }
+            if (c == ',' && parenthesisDepth == 0 && bracketDepth == 0 && angleDepth == 0) {
                 return i;
             }
         }
-        return parenthesisDepth == 0 ? content.length() : -1;
+        return (parenthesisDepth == 0 && bracketDepth == 0 && angleDepth == 0) ? content.length() : -1;
     }
 
     private static Iota parseScalarToken(String token) {

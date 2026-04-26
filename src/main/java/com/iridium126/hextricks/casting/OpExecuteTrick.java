@@ -21,26 +21,14 @@ public enum OpExecuteTrick implements Action {
     INSTANCE;
 
     private List<Iota> execute(List<Iota> args, CastingEnvironment env) throws Mishap {
-        Iota first = args.get(0);
-        Iota second = args.get(1);
-
         TrickIota trickIota;
-        ListIota listIota;
+        ListIota listIota = null;
 
-        if (first instanceof TrickIota trick && second instanceof ListIota list) {
-            trickIota = trick;
-            listIota = list;
-        } else if (first instanceof ListIota list && second instanceof TrickIota trick) {
-            trickIota = trick;
-            listIota = list;
-        } else if (!(first instanceof TrickIota) && !(first instanceof ListIota)) {
-            throw MishapInvalidIota.of(first, 0, "class.hextricks_trick");
-        } else if (!(second instanceof ListIota) && !(second instanceof TrickIota)) {
-            throw MishapInvalidIota.of(second, 1, "class.hexcasting_list");
-        } else if (first instanceof TrickIota) {
-            throw MishapInvalidIota.of(second, 1, "class.hexcasting_list");
+        if (args.size() == 1) {
+            trickIota = (TrickIota) args.get(0);
         } else {
-            throw MishapInvalidIota.of(second, 1, "class.hextricks_trick");
+            trickIota = (TrickIota) args.get(0);
+            listIota = (ListIota) args.get(1);
         }
 
         if (!(env.getCastingEntity() instanceof ServerPlayer player)) {
@@ -48,10 +36,12 @@ public enum OpExecuteTrick implements Action {
         }
 
         List<Iota> params = new ArrayList<>();
-        Iterable<Iota> iterable = listIota.subIotas();
-        if (iterable != null) {
-            for (Iota iota : iterable) {
-                params.add(iota);
+        if (listIota != null) {
+            Iterable<Iota> iterable = listIota.subIotas();
+            if (iterable != null) {
+                for (Iota iota : iterable) {
+                    params.add(iota);
+                }
             }
         }
 
@@ -67,13 +57,31 @@ public enum OpExecuteTrick implements Action {
     @Override
     public OperationResult operate(CastingEnvironment env, CastingImage image, SpellContinuation continuation) throws Mishap {
         List<Iota> stack = new ArrayList<>(image.getStack());
-        if (stack.size() < 2) {
-            throw new MishapNotEnoughArgs(2, stack.size());
+        if (stack.isEmpty()) {
+            throw new MishapNotEnoughArgs(1, 0);
         }
 
-        Iota arg0 = stack.removeLast();
-        Iota arg1 = stack.removeLast();
-        stack.addAll(execute(List.of(arg0, arg1), env));
+        List<Iota> argsToPass = new ArrayList<>();
+        Iota top = stack.removeLast();
+
+        if (top instanceof ListIota list) {
+            if (stack.isEmpty()) {
+                throw new MishapNotEnoughArgs(2, 1);
+            }
+            Iota next = stack.removeLast();
+            if (next instanceof TrickIota trick) {
+                argsToPass.add(trick);
+                argsToPass.add(list);
+            } else {
+                throw MishapInvalidIota.of(next, stack.size(), "class.hextricks_trick");
+            }
+        } else if (top instanceof TrickIota trick) {
+            argsToPass.add(trick);
+        } else {
+            throw MishapInvalidIota.of(top, stack.size(), "class.hextricks_trick");
+        }
+
+        stack.addAll(execute(argsToPass, env));
 
         CastingImage nextImage = image.copy(
                 stack,
