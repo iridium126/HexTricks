@@ -1,0 +1,40 @@
+{
+  "name": "hextricks.entry.hextricks",
+  "category": "hexcasting:patterns",
+  "icon": "minecraft:amethyst_shard",
+  "sortnum": 99,
+  "advancement": "hexcasting:root",
+  "read_by_default": true,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "hextricks.page.hextricks.intro"
+    },
+    {
+      "type": "hexcasting:pattern",
+      "op_id": "hextricks:trick/read",
+      "anchor": "hextricks:trick/read",
+      "input": "",
+      "output": "trick",
+      "text": "hextricks.page.hextricks.read"
+    },
+    {
+      "type": "hexcasting:pattern",
+      "op_id": "hextricks:trick/execute",
+      "anchor": "hextricks:trick/execute",
+      "input": "trick, list",
+      "output": "any",
+      "text": "hextricks.page.hextricks.execute"
+    },
+    {
+      "type": "patchouli:text",
+      "title": "hextricks.page.hextricks.trick_iota.title",
+      "text": "hextricks.page.hextricks.trick_iota"
+    },
+    {
+      "type": "patchouli:text",
+      "title": "hextricks.page.hextricks.bridge_notes.title",
+      "text": "hextricks.page.hextricks.bridge_notes"
+    }
+  ]
+}

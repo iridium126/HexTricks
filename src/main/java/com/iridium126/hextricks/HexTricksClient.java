@@ -1,5 +1,6 @@
 package com.iridium126.hextricks;
 
+import com.iridium126.hextricks.inline.client.IotaInlineMatcher;
 import com.iridium126.hextricks.inline.client.SpellInlineMatcher;
 import com.iridium126.hextricks.inline.client.SpellInlineRenderer;
 import net.neoforged.api.distmarker.Dist;
@@ -28,6 +29,7 @@ public class HexTricksClient {
         event.enqueueWork(() -> {
             SpellInlineRenderer.register();
             SpellInlineMatcher.register();
+            IotaInlineMatcher.register();
         });
     }
 }

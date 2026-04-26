@@ -302,7 +302,7 @@ public final class TricksterBridge {
             String displayName;
             if (entityIota.getEntityName() != null) {
                 String name = entityIota.getEntityName().getString();
-                int colonIndex = name.indexOf(":");
+                int colonIndex = name.lastIndexOf(":");
                 displayName = colonIndex > 0 ? name.substring(0, colonIndex) : name;
             } else {
                 displayName = Component.translatable("hexcasting.spelldata.entity.whoknows").getString();
@@ -442,7 +442,7 @@ public final class TricksterBridge {
     private record DisplayMetadataInsertion(String displayToken, String suffix) {
     }
 
-    private static Iota fragmentToIota(Object fragment) throws Throwable {
+    static Iota fragmentToIota(Object fragment) throws Throwable {
         if (fragment == null || voidFragmentClass.isInstance(fragment)) {
             return new NullIota();
         }

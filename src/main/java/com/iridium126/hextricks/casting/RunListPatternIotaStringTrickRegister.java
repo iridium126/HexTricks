@@ -2,12 +2,14 @@ package com.iridium126.hextricks.casting;
 
 import at.petrak.hexcasting.api.casting.eval.ExecutionClientView;
 import at.petrak.hexcasting.api.casting.eval.env.StaffCastEnv;
+import at.petrak.hexcasting.api.casting.eval.vm.CastingImage;
 import at.petrak.hexcasting.api.casting.eval.vm.CastingVM;
 import at.petrak.hexcasting.api.casting.iota.Iota;
 import at.petrak.hexcasting.api.casting.iota.ListIota;
 import at.petrak.hexcasting.api.casting.iota.NullIota;
 import com.iridium126.hextricks.HexTricks;
 import com.iridium126.hextricks.util.ListPatternIotaParser;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 
@@ -60,10 +62,10 @@ public final class RunListPatternIotaStringTrickRegister {
             String name = method.getName();
             if ("match".equals(name)) {
                 List<?> fragments = args != null && args.length > 0 && args[0] instanceof List<?> list ? list : List.of();
-                return extractSingleStringInput(fragments) != null;
+                return hasRunnableInput(fragments);
             }
             if ("asText".equals(name)) {
-                return TricksterBridge.makeTextLiteral("string -> any");
+                return TricksterBridge.makeTextLiteral("string/list, ... -> any");
             }
             if ("run".equals(name)) {
                 try {
@@ -74,17 +76,16 @@ public final class RunListPatternIotaStringTrickRegister {
 
                     Object spellContext = args != null && args.length > 1 ? args[1] : null;
                     List<?> fragments = args != null && args.length > 2 && args[2] instanceof List<?> list ? list : List.of();
-                    String displayString = extractSingleStringInput(fragments);
-                    if (displayString == null) {
+                    Iota runnableIota = extractRunnableIota(fragments);
+                    if (runnableIota == null) {
+                        return TricksterBridge.voidFragmentInstance;
+                    }
+                    List<Iota> initialStack = extractInitialStack(fragments);
+                    if (initialStack == null) {
                         return TricksterBridge.voidFragmentInstance;
                     }
 
-                    Optional<Iota> restored = ListPatternIotaParser.restoreFromDisplay(displayString);
-                    if (restored.isEmpty()) {
-                        return TricksterBridge.voidFragmentInstance;
-                    }
-
-                    Iota result = runRestoredIota(spellContext, restored.get());
+                    Iota result = runRestoredIota(spellContext, runnableIota, initialStack);
                     if (result == null) {
                         return TricksterBridge.voidFragmentInstance;
                     }
@@ -105,12 +106,79 @@ public final class RunListPatternIotaStringTrickRegister {
         );
     }
 
-    private static String extractSingleStringInput(List<?> fragments) {
-        if (fragments.size() != 1) {
+    private static boolean hasRunnableInput(List<?> fragments) {
+        if (fragments.isEmpty()) {
+            return false;
+        }
+
+        return extractRunnableIota(fragments) != null && extractInitialStack(fragments) != null;
+    }
+
+    private static Iota extractRunnableIota(List<?> fragments) {
+        if (fragments.isEmpty()) {
             return null;
         }
 
         Object fragment = fragments.getFirst();
+        Iota stringIota = extractStringIota(fragment);
+        if (stringIota != null) {
+            return stringIota;
+        }
+
+        return extractListIota(fragment);
+    }
+
+    private static List<Iota> extractInitialStack(List<?> fragments) {
+        if (fragments.size() <= 1) {
+            return List.of();
+        }
+
+        List<Iota> initialStack = new ArrayList<>(fragments.size() - 1);
+        for (int index = 1; index < fragments.size(); index++) {
+            Iota iota = extractArgumentIota(fragments.get(index));
+            if (iota == null) {
+                return null;
+            }
+            initialStack.add(iota);
+        }
+        return initialStack;
+    }
+
+    private static Iota extractStringIota(Object fragment) {
+        String displayString = extractStringInput(fragment);
+        if (displayString == null) {
+            return null;
+        }
+
+        Optional<Iota> restored = ListPatternIotaParser.restoreFromDisplay(displayString);
+        return restored.orElse(null);
+    }
+
+    private static Iota extractListIota(Object fragment) {
+        try {
+            if (!TricksterBridge.ensureExecuteInit()) {
+                return null;
+            }
+            Iota iota = TricksterBridge.fragmentToIota(fragment);
+            return iota instanceof ListIota ? iota : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static Iota extractArgumentIota(Object fragment) {
+        try {
+            if (!TricksterBridge.ensureExecuteInit()) {
+                return null;
+            }
+            Iota iota = TricksterBridge.fragmentToIota(fragment);
+            return iota != null ? iota : new NullIota();
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static String extractStringInput(Object fragment) {
         String value = tryReadFragmentValue(fragment);
         if (value != null) {
             return value;
@@ -162,14 +230,22 @@ public final class RunListPatternIotaStringTrickRegister {
         }
     }
 
-    private static Iota runRestoredIota(Object spellContext, Iota restoredIota) {
+    private static Iota runRestoredIota(Object spellContext, Iota restoredIota, List<Iota> initialStack) {
         ServerPlayer player = resolveCasterPlayer(spellContext);
         if (player == null) {
             return null;
         }
 
         try {
-            CastingVM vm = CastingVM.empty(new StaffCastEnv(player, InteractionHand.MAIN_HAND));
+            CastingImage image = new CastingImage(
+                    new ArrayList<>(initialStack),
+                    0,
+                    List.<CastingImage.ParenthesizedIota>of(),
+                    false,
+                    0,
+                    new CompoundTag()
+            );
+            CastingVM vm = new CastingVM(image, new StaffCastEnv(player, InteractionHand.MAIN_HAND));
             ExecutionClientView result;
 
             if (restoredIota instanceof ListIota listIota) {
