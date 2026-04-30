@@ -45,13 +45,17 @@ public enum OpExecuteTrick implements Action {
             }
         }
 
-        Iota result = TricksterBridge.tryExecuteBySpellData(player, trickIota.getSpellData(), params);
-        if (result == null) {
-            HexTricks.LOGGER.warn("Failed to execute Trickster spell fragment");
+        TricksterBridge.SpellExecutionResult execution = TricksterBridge.tryExecuteBySpellData(player, trickIota.getSpellData(), params);
+        if (execution.status() == TricksterBridge.SpellExecutionStatus.COMPLETED) {
+            Iota result = execution.result();
+            return result != null ? List.of(result) : List.of();
+        }
+        if (execution.status() == TricksterBridge.SpellExecutionStatus.HANDED_OFF) {
             return List.of();
         }
 
-        return List.of(result);
+        HexTricks.LOGGER.warn("Failed to execute Trickster spell fragment");
+        return List.of();
     }
 
     @Override

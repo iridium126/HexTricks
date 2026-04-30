@@ -13,6 +13,7 @@ import net.minecraft.world.item.ItemStack;
 import org.joml.Vector3d;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -61,6 +62,13 @@ public final class TricksterBridge {
     private static Class<?> playerSpellSourceClass;
     private static Constructor<?> defaultSpellExecutorCtor;
     private static Method spellExecutorRunMethod;
+    private static Method spellSourceGetExecutionManagerMethod;
+    private static Method spellExecutionManagerQueueMethod;
+    private static Method spellExecutorGetLastRunExecutionsMethod;
+    private static Method spellExecutorGetDeepestStateMethod;
+    private static Method executionStateIsDelayedMethod;
+    private static Field tricksterConfigField;
+    private static Method tricksterConfigMaxExecutionsMethod;
 
     static Method tricksRegisterMethod;
     static Method patternOfMethod;
@@ -68,6 +76,26 @@ public final class TricksterBridge {
     static Class<?> signatureClass;
 
     private TricksterBridge() {
+    }
+
+    enum SpellExecutionStatus {
+        COMPLETED,
+        HANDED_OFF,
+        FAILED
+    }
+
+    record SpellExecutionResult(SpellExecutionStatus status, Iota result) {
+        static SpellExecutionResult completed(Iota result) {
+            return new SpellExecutionResult(SpellExecutionStatus.COMPLETED, result);
+        }
+
+        static SpellExecutionResult handedOff() {
+            return new SpellExecutionResult(SpellExecutionStatus.HANDED_OFF, null);
+        }
+
+        static SpellExecutionResult failed() {
+            return new SpellExecutionResult(SpellExecutionStatus.FAILED, null);
+        }
     }
 
     static String readSpellDataFromStack(ItemStack stack) {
@@ -92,48 +120,61 @@ public final class TricksterBridge {
         }
     }
 
-    static Iota tryExecuteBySpellData(ServerPlayer player, String spellData, List<Iota> arguments) {
+    static SpellExecutionResult tryExecuteBySpellData(ServerPlayer player, String spellData, List<Iota> arguments) {
         try {
             if (!ensureExecuteInit() || spellData == null || spellData.isBlank()) {
-                return null;
+                return SpellExecutionResult.failed();
             }
 
             Object decoded = fragmentFromBase64Method.invoke(null, spellData);
             if (decoded == null) {
-                return null;
+                return SpellExecutionResult.failed();
             }
 
             Object spellPart = spellPartClass.isInstance(decoded) ? decoded : spellPartCtor.newInstance(decoded);
             Object source = newPlayerSpellSource(player);
             if (source == null) {
-                return null;
+                return SpellExecutionResult.failed();
             }
             List<Object> tricksterArgs = new ArrayList<>(arguments.size());
             for (Iota arg : arguments) {
                 Object fragmentArg = iotaToFragment(arg, false);
                 if (fragmentArg == null) {
                     HexTricks.LOGGER.warn("Unsupported iota argument type for Trickster execution: {}", arg.getClass().getName());
-                    return null;
+                    return SpellExecutionResult.failed();
                 }
                 tricksterArgs.add(fragmentArg);
             }
 
             Object executor = defaultSpellExecutorCtor.newInstance(spellPart, tricksterArgs);
-            for (int step = 0; step < MAX_SYNC_EXECUTION_STEPS; step++) {
-                Object runResult = spellExecutorRunMethod.invoke(executor, source);
-                if (!(runResult instanceof Optional<?> optional)) {
-                    return null;
-                }
-                if (optional.isPresent()) {
-                    Iota converted = fragmentToIota(optional.get());
-                    return converted != null ? converted : new NullIota();
-                }
+            Object runResult = spellExecutorRunMethod.invoke(executor, source);
+            if (!(runResult instanceof Optional<?> optional)) {
+                return SpellExecutionResult.failed();
             }
 
-            return null;
+            if (optional.isPresent()) {
+                Iota converted = fragmentToIota(optional.get());
+                return SpellExecutionResult.completed(converted != null ? converted : new NullIota());
+            }
+
+            int executed = getExecutorLastRunExecutions(executor);
+            int maxPerTick = getConfiguredMaxExecutionsPerTick();
+            boolean delayed = isExecutorDelayed(executor);
+
+            if (queueExecutorForContinuation(source, executor)) {
+                return SpellExecutionResult.handedOff();
+            }
+
+            HexTricks.LOGGER.warn(
+                    "Trickster spell requires continuation but failed to queue (executions={}, maxPerTick={}, delayed={})",
+                    executed,
+                    maxPerTick,
+                    delayed
+            );
+            return SpellExecutionResult.failed();
         } catch (Throwable t) {
             HexTricks.LOGGER.warn("Failed to execute Trickster spell fragment bridge", t);
-            return null;
+            return SpellExecutionResult.failed();
         }
     }
 
@@ -208,8 +249,26 @@ public final class TricksterBridge {
             Class<?> defaultSpellExecutorClass = Class.forName("dev.enjarai.trickster.spell.execution.executor.DefaultSpellExecutor");
             defaultSpellExecutorCtor = defaultSpellExecutorClass.getConstructor(spellPartClass, List.class);
 
+            Class<?> spellExecutorClass = Class.forName("dev.enjarai.trickster.spell.SpellExecutor");
+            spellExecutorGetLastRunExecutionsMethod = spellExecutorClass.getMethod("getLastRunExecutions");
+            spellExecutorGetDeepestStateMethod = spellExecutorClass.getMethod("getDeepestState");
+
             Class<?> spellSourceClass = Class.forName("dev.enjarai.trickster.spell.execution.source.SpellSource");
             spellExecutorRunMethod = defaultSpellExecutorClass.getMethod("run", spellSourceClass);
+            spellSourceGetExecutionManagerMethod = spellSourceClass.getMethod("getExecutionManager");
+
+            Class<?> spellExecutionManagerClass = Class.forName("dev.enjarai.trickster.spell.execution.SpellExecutionManager");
+            spellExecutionManagerQueueMethod = spellExecutionManagerClass.getMethod("queue", spellExecutorClass);
+
+            Class<?> executionStateClass = Class.forName("dev.enjarai.trickster.spell.execution.ExecutionState");
+            executionStateIsDelayedMethod = executionStateClass.getMethod("isDelayed");
+
+            Class<?> tricksterClass = Class.forName("dev.enjarai.trickster.Trickster");
+            tricksterConfigField = tricksterClass.getField("CONFIG");
+            Object config = tricksterConfigField.get(null);
+            if (config != null) {
+                tricksterConfigMaxExecutionsMethod = config.getClass().getMethod("maxExecutionsPerSpellPerTick");
+            }
 
             executeAvailable = true;
         } catch (Throwable ignored) {
@@ -262,6 +321,79 @@ public final class TricksterBridge {
                 player.getClass().getName()
         );
         return null;
+    }
+
+    private static int getConfiguredMaxExecutionsPerTick() {
+        if (tricksterConfigField == null || tricksterConfigMaxExecutionsMethod == null) {
+            return MAX_SYNC_EXECUTION_STEPS;
+        }
+
+        try {
+            Object config = tricksterConfigField.get(null);
+            if (config == null) {
+                return MAX_SYNC_EXECUTION_STEPS;
+            }
+
+            Object raw = tricksterConfigMaxExecutionsMethod.invoke(config);
+            if (raw instanceof Number number) {
+                return Math.max(0, number.intValue());
+            }
+        } catch (Throwable ignored) {
+        }
+
+        return MAX_SYNC_EXECUTION_STEPS;
+    }
+
+    private static int getExecutorLastRunExecutions(Object executor) {
+        if (spellExecutorGetLastRunExecutionsMethod == null || executor == null) {
+            return 0;
+        }
+
+        try {
+            Object raw = spellExecutorGetLastRunExecutionsMethod.invoke(executor);
+            if (raw instanceof Number number) {
+                return number.intValue();
+            }
+        } catch (Throwable ignored) {
+        }
+
+        return 0;
+    }
+
+    private static boolean isExecutorDelayed(Object executor) {
+        if (spellExecutorGetDeepestStateMethod == null || executionStateIsDelayedMethod == null || executor == null) {
+            return false;
+        }
+
+        try {
+            Object state = spellExecutorGetDeepestStateMethod.invoke(executor);
+            Object raw = executionStateIsDelayedMethod.invoke(state);
+            if (raw instanceof Boolean delayed) {
+                return delayed;
+            }
+        } catch (Throwable ignored) {
+        }
+
+        return false;
+    }
+
+    private static boolean queueExecutorForContinuation(Object source, Object executor) {
+        if (spellSourceGetExecutionManagerMethod == null || spellExecutionManagerQueueMethod == null) {
+            return false;
+        }
+
+        try {
+            Object managerOptional = spellSourceGetExecutionManagerMethod.invoke(source);
+            if (!(managerOptional instanceof Optional<?> optional) || optional.isEmpty()) {
+                return false;
+            }
+
+            Object queueResult = spellExecutionManagerQueueMethod.invoke(optional.get(), executor);
+            return queueResult instanceof Optional<?> queueOptional && queueOptional.isPresent();
+        } catch (Throwable t) {
+            HexTricks.LOGGER.warn("Failed to queue Trickster spell executor continuation", t);
+            return false;
+        }
     }
 
     static Object makeTextLiteral(String text) {

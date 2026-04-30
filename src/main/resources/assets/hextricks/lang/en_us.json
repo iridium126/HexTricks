@@ -11,7 +11,7 @@
   "hextricks.entry.hextricks": "Hex Tricks",
   "hextricks.page.hextricks.intro": "Trickster spells and Hex Casting patterns can be made to speak through iotas. These patterns bridge inscribed Trickster fragments into Hex Casting, producing a new kind of iota that stores a Trickster spell.",
   "hextricks.page.hextricks.read": "Reads a Trickster spell fragment from the item in the other hand and pushes it as a Trick Iota. The offhand item must be one Trickster can read an inscribed fragment from, such as a written scroll or another suitable spell item.",
-  "hextricks.page.hextricks.execute": "Accepts a Trick Iota and a list of Hex arguments in either order, executes the stored Trickster spell as the caster, and pushes the returned fragment after converting it back into a Hex iota. If execution fails or returns no usable value, nothing is pushed.",
+  "hextricks.page.hextricks.execute": "Accepts a Trick Iota and a list of Hex arguments, executes the stored Trickster spell as the caster, and pushes the returned fragment after converting it back into a Hex iota. If execution fails or returns no usable value, nothing is pushed.",
   "hextricks.page.hextricks.trick_iota.title": "Trick Iotas",
   "hextricks.page.hextricks.trick_iota": "A Trick Iota contains Trickster spell data. It displays as $(thing)Trick$() followed by the encoded spell payload, and can be carried on the Hex stack like any other iota. Keep it intact if you plan to run the same Trickster spell repeatedly.",
   "hextricks.page.hextricks.bridge_notes.title": "Crossing the Bridge",
