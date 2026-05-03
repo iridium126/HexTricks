@@ -7,6 +7,7 @@ import at.petrak.hexcasting.api.casting.eval.vm.CastingVM;
 import at.petrak.hexcasting.api.casting.iota.Iota;
 import at.petrak.hexcasting.api.casting.iota.ListIota;
 import at.petrak.hexcasting.api.casting.iota.NullIota;
+import at.petrak.hexcasting.api.casting.iota.PatternIota;
 import com.iridium126.hextricks.HexTricks;
 import com.iridium126.hextricks.util.ListPatternIotaParser;
 import net.minecraft.nbt.CompoundTag;
@@ -76,16 +77,12 @@ public final class RunListPatternIotaStringTrickRegister {
 
                     Object spellContext = args != null && args.length > 1 ? args[1] : null;
                     List<?> fragments = args != null && args.length > 2 && args[2] instanceof List<?> list ? list : List.of();
-                    Iota runnableIota = extractRunnableIota(fragments);
-                    if (runnableIota == null) {
-                        return TricksterBridge.voidFragmentInstance;
-                    }
-                    List<Iota> initialStack = extractInitialStack(fragments);
-                    if (initialStack == null) {
+                    RunnableInput input = extractRunnableInput(spellContext, fragments);
+                    if (input == null) {
                         return TricksterBridge.voidFragmentInstance;
                     }
 
-                    Iota result = runRestoredIota(spellContext, runnableIota, initialStack);
+                    Iota result = runRestoredIota(spellContext, input.runnableIota(), input.initialStack());
                     if (result == null) {
                         return TricksterBridge.voidFragmentInstance;
                     }
@@ -111,21 +108,131 @@ public final class RunListPatternIotaStringTrickRegister {
             return false;
         }
 
-        return extractRunnableIota(fragments) != null && extractInitialStack(fragments) != null;
+        return extractRunnableInput(fragments) != null;
     }
 
-    private static Iota extractRunnableIota(List<?> fragments) {
+    private static RunnableInput extractRunnableInput(List<?> fragments) {
         if (fragments.isEmpty()) {
             return null;
         }
 
         Object fragment = fragments.getFirst();
-        Iota stringIota = extractStringIota(fragment);
-        if (stringIota != null) {
-            return stringIota;
+        Iota listIota = extractListIota(fragment);
+        if (listIota != null) {
+            List<Iota> initialStack = extractInitialStack(fragments);
+            Iota runnable = unwrapRunnableList(listIota);
+            return initialStack != null ? new RunnableInput(runnable, initialStack) : null;
         }
 
-        return extractListIota(fragment);
+        if (fragments.size() > 1) {
+            Iota expandedListIota = extractExpandedPatternListIota(fragments);
+            if (expandedListIota != null) {
+                return new RunnableInput(expandedListIota, List.of());
+            }
+        }
+
+        Iota stringIota = extractStringIota(fragment);
+        if (stringIota != null) {
+            List<Iota> initialStack = extractInitialStack(fragments);
+            return initialStack != null ? new RunnableInput(stringIota, initialStack) : null;
+        }
+
+        return null;
+    }
+
+    private static RunnableInput extractRunnableInput(Object spellContext, List<?> fragments) {
+        RunnableInput contextInput = extractContextRunnableInput(spellContext, fragments);
+        if (contextInput != null) {
+            return contextInput;
+        }
+        return extractRunnableInput(fragments);
+    }
+
+    private static RunnableInput extractContextRunnableInput(Object spellContext, List<?> fragments) {
+        List<?> contextArguments = extractContextArguments(spellContext);
+        if (contextArguments == null || contextArguments.isEmpty()) {
+            return null;
+        }
+
+        if (fragments.size() == 1 && contextArguments.size() > 1 && firstFragmentMatchesListFirst(fragments.getFirst(), contextArguments)) {
+            Iota expandedContextListIota = extractExpandedPatternListIota(contextArguments);
+            if (expandedContextListIota != null) {
+                return new RunnableInput(expandedContextListIota, List.of());
+            }
+        }
+
+        Object contextFirst = contextArguments.getFirst();
+        Iota contextListIota = extractListIota(contextFirst);
+        if (contextListIota == null) {
+            return null;
+        }
+
+        List<?> contextListEntries = tryReadListFragmentEntries(contextFirst);
+        if (!fragments.isEmpty() && !firstFragmentMatchesListFirst(fragments.getFirst(), contextListEntries)) {
+            return null;
+        }
+
+        List<Iota> initialStack = extractInitialStack(contextArguments);
+        Iota runnable = unwrapRunnableList(contextListIota);
+        return initialStack != null ? new RunnableInput(runnable, initialStack) : null;
+    }
+
+    private static List<?> extractContextArguments(Object spellContext) {
+        if (spellContext == null) {
+            return null;
+        }
+
+        try {
+            Method stateMethod = spellContext.getClass().getMethod("state");
+            Object state = stateMethod.invoke(spellContext);
+            if (state == null) {
+                return null;
+            }
+
+            Method getArgumentsMethod = state.getClass().getMethod("getArguments");
+            Object rawArguments = getArgumentsMethod.invoke(state);
+            if (rawArguments instanceof List<?> arguments) {
+                return arguments;
+            }
+        } catch (Throwable ignored) {
+            return null;
+        }
+        return null;
+    }
+
+    private static List<?> tryReadListFragmentEntries(Object fragment) {
+        if (fragment == null) {
+            return null;
+        }
+
+        try {
+            Method fragmentsMethod = fragment.getClass().getMethod("fragments");
+            Object rawEntries = fragmentsMethod.invoke(fragment);
+            return rawEntries instanceof List<?> entries ? entries : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static boolean firstFragmentMatchesListFirst(Object currentFirst, List<?> listEntries) {
+        if (currentFirst == null || listEntries == null || listEntries.isEmpty()) {
+            return false;
+        }
+
+        Object listFirst = listEntries.getFirst();
+        if (currentFirst == listFirst) {
+            return true;
+        }
+
+        String currentValue = tryReadFragmentValue(currentFirst);
+        String listValue = tryReadFragmentValue(listFirst);
+        if (currentValue != null && currentValue.equals(listValue)) {
+            return true;
+        }
+
+        String currentText = tryReadFragmentText(currentFirst);
+        String listText = tryReadFragmentText(listFirst);
+        return currentText != null && currentText.equals(listText);
     }
 
     private static List<Iota> extractInitialStack(List<?> fragments) {
@@ -164,6 +271,42 @@ public final class RunListPatternIotaStringTrickRegister {
         } catch (Throwable ignored) {
             return null;
         }
+    }
+
+    private static Iota unwrapRunnableList(Iota iota) {
+        if (!(iota instanceof ListIota listIota)) {
+            return iota;
+        }
+
+        List<Iota> entries = listEntries(listIota);
+        if (entries.size() == 1 && entries.getFirst() instanceof ListIota nestedList) {
+            return nestedList;
+        }
+        return iota;
+    }
+
+    private static Iota extractExpandedPatternListIota(List<?> fragments) {
+        List<Iota> iotas = new ArrayList<>(fragments.size());
+        for (int index = 0; index < fragments.size(); index++) {
+            Object fragment = fragments.get(index);
+            Iota iota = extractStringIota(fragment);
+            if (!(iota instanceof PatternIota)) {
+                return null;
+            }
+            iotas.add(iota);
+        }
+        return new ListIota(iotas);
+    }
+
+    private static List<Iota> listEntries(ListIota listIota) {
+        List<Iota> entries = new ArrayList<>();
+        Iterable<Iota> iterable = listIota.subIotas();
+        if (iterable != null) {
+            for (Iota iota : iterable) {
+                entries.add(iota);
+            }
+        }
+        return entries;
     }
 
     private static Iota extractArgumentIota(Object fragment) {
@@ -249,13 +392,7 @@ public final class RunListPatternIotaStringTrickRegister {
             ExecutionClientView result;
 
             if (restoredIota instanceof ListIota listIota) {
-                List<Iota> instructions = new ArrayList<>();
-                Iterable<Iota> iterable = listIota.subIotas();
-                if (iterable != null) {
-                    for (Iota iota : iterable) {
-                        instructions.add(iota);
-                    }
-                }
+                List<Iota> instructions = listEntries(listIota);
                 result = vm.queueExecuteAndWrapIotas(instructions, player.serverLevel());
             } else {
                 result = vm.queueExecuteAndWrapIota(restoredIota, player.serverLevel());
@@ -297,5 +434,8 @@ public final class RunListPatternIotaStringTrickRegister {
             HexTricks.LOGGER.warn("Failed to resolve Trickster spell caster player", t);
             return null;
         }
+    }
+
+    private record RunnableInput(Iota runnableIota, List<Iota> initialStack) {
     }
 }

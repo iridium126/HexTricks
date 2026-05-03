@@ -161,7 +161,7 @@ public final class ListPatternIotaParser {
         if (c == '[') {
             int end = findMatchingBracket(content, index);
             
-            if (end >= 0 && content.charAt(end + 1) != '<') { 
+            if (end >= 0 && (end + 1 >= content.length() || content.charAt(end + 1) != '<')) { 
                 ListIota nested = parseListToken(content.substring(index, end + 1));
                 if (nested == null) {
                     return null;
