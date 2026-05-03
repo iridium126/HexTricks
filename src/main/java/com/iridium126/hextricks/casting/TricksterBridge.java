@@ -8,8 +8,12 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.Vec3;
 import com.iridium126.hextricks.util.ListPatternIotaParser;
 import com.iridium126.hextricks.util.ListPatternIotaValidator;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.entity.Entity;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.joml.Vector3d;
 
 import java.lang.reflect.Constructor;
@@ -18,6 +22,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public final class TricksterBridge {
     private static final int MAX_SYNC_EXECUTION_STEPS = 4096;
@@ -54,9 +59,7 @@ public final class TricksterBridge {
     private static Class<?> entityFragmentClass;
     private static Constructor<?> entityFragmentCtor;
     private static Method entityUuidMethod;
-    private static Method entityNameMethod;
     private static Method componentLiteralMethod;
-    private static Method componentGetStringMethod;
     private static Method stringValueMethod;
     private static Class<?> stringFragmentClass;
     private static Constructor<?> stringFragmentCtor;
@@ -158,7 +161,7 @@ public final class TricksterBridge {
 
             if (optional.isPresent()) {
                 Iota converted = fragmentToIota(optional.get());
-                return SpellExecutionResult.completed(converted != null ? converted : new NullIota());
+                return SpellExecutionResult.completed(converted);
             }
 
             int executed = getExecutorLastRunExecutions(executor);
@@ -240,9 +243,7 @@ public final class TricksterBridge {
             Class<?> textClass = Class.forName("net.minecraft.network.chat.Component");
             entityFragmentCtor = entityFragmentClass.getConstructor(java.util.UUID.class, textClass);
             entityUuidMethod = entityFragmentClass.getMethod("uuid");
-            entityNameMethod = entityFragmentClass.getMethod("name");
             componentLiteralMethod = textClass.getMethod("literal", String.class);
-            componentGetStringMethod = textClass.getMethod("getString");
 
             stringFragmentClass = Class.forName("dev.enjarai.trickster.spell.fragment.StringFragment");
             stringFragmentCtor = stringFragmentClass.getConstructor(String.class);
@@ -609,9 +610,24 @@ public final class TricksterBridge {
     private record DisplayMetadataInsertion(String displayToken, String suffix) {
     }
 
+    private static Entity resolveServerEntity(UUID entityId) {
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            return null;
+        }
+
+        for (ServerLevel level : server.getAllLevels()) {
+            Entity entity = level.getEntity(entityId);
+            if (entity != null) {
+                return entity;
+            }
+        }
+        return null;
+    }
+
     static Iota fragmentToIota(Object fragment) throws Throwable {
         if (fragment == null || voidFragmentClass.isInstance(fragment)) {
-            return new NullIota();
+            return null;
         }
         if (numberFragmentClass.isInstance(fragment)) {
             Object value = numberValueMethod.invoke(fragment);
@@ -653,19 +669,12 @@ public final class TricksterBridge {
         }
         if (entityFragmentClass.isInstance(fragment)) {
             Object rawUuid = entityUuidMethod.invoke(fragment);
-            if (rawUuid instanceof java.util.UUID uuid) {
-                Component entityName = null;
-                Object rawName = entityNameMethod.invoke(fragment);
-                if (rawName != null) {
-                    Method getStringMethod = componentGetStringMethod != null
-                            ? componentGetStringMethod
-                            : rawName.getClass().getMethod("getString");
-                    Object rawString = getStringMethod.invoke(rawName);
-                    if (rawString instanceof String s) {
-                        entityName = Component.literal(s);
-                    }
+            if (rawUuid instanceof UUID uuid) {
+                Entity entity = resolveServerEntity(uuid);
+                if (entity != null) {
+                    return new EntityIota(entity);
                 }
-                return new EntityIota(uuid, entityName);
+                return new NullIota();
             }
             return null;
         }
