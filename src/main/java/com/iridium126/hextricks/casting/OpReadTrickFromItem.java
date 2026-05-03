@@ -18,14 +18,14 @@ public enum OpReadTrickFromItem implements Action {
 
     private List<Iota> execute(CastingEnvironment env) throws Mishap {
         CastingEnvironment.HeldItemInfo held = env.getHeldItemToOperateOn(
-                stack -> TricksterBridge.readSpellDataFromStack(stack) != null
+                stack -> SpellExecutionBridge.readSpellDataFromStack(stack) != null
         );
         if (held == null) {
             CastingEnvironment.HeldItemInfo fallback = env.getHeldItemToOperateOn(stack -> !stack.isEmpty());
             throw MishapBadOffhandItem.of(fallback != null ? fallback.stack() : null, "trick.read");
         }
 
-        String spellData = TricksterBridge.readSpellDataFromStack(held.stack());
+        String spellData = SpellExecutionBridge.readSpellDataFromStack(held.stack());
         if (spellData == null) {
             throw MishapBadOffhandItem.of(held.stack(), "trick.read");
         }

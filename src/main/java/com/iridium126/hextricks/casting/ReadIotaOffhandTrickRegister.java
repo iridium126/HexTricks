@@ -23,13 +23,13 @@ public final class ReadIotaOffhandTrickRegister {
             return;
         }
         try {
-            if (!TricksterBridge.ensureRegisterInit()) {
+            if (!TricksterReflection.ensureRegisterInit()) {
                 HexTricks.LOGGER.warn("Trickster offhand iota read trick registration is unavailable: register init failed");
                 return;
             }
 
-            Object pattern = TricksterBridge.patternOfMethod.invoke(null, (Object) new int[]{6, 7, 4, 1, 0, 3, 4, 5, 2, 1});
-            Object trick = TricksterBridge.loadArgumentTrickCtor.newInstance(pattern, 0);
+            Object pattern = TricksterReflection.patternOfMethod.invoke(null, (Object) new int[]{6, 7, 4, 1, 0, 3, 4, 5, 2, 1});
+            Object trick = TricksterReflection.loadArgumentTrickCtor.newInstance(pattern, 0);
 
             Method getSignaturesMethod = trick.getClass().getMethod("getSignatures");
             Object rawSignatures = getSignaturesMethod.invoke(trick);
@@ -41,7 +41,7 @@ public final class ReadIotaOffhandTrickRegister {
 
             signatures.clear();
             signatures.add(createSignatureProxy());
-            TricksterBridge.tricksRegisterMethod.invoke(null, "read_iota_offhand", trick);
+            TricksterReflection.tricksRegisterMethod.invoke(null, "read_iota_offhand", trick);
             readIotaTrickRegistered = true;
             HexTricks.LOGGER.info("Registered Trickster trick: read_iota_offhand");
         } catch (Throwable t) {
@@ -56,32 +56,32 @@ public final class ReadIotaOffhandTrickRegister {
                 return true;
             }
             if ("asText".equals(name)) {
-                return TricksterBridge.makeTextLiteral("-> any");
+                return FragmentConverter.makeTextLiteral("-> any");
             }
             if ("run".equals(name)) {
                 try {
-                    if (!TricksterBridge.ensureExecuteInit()) {
+                    if (!TricksterReflection.ensureExecuteInit()) {
                         HexTricks.LOGGER.warn("Trickster offhand iota read trick execute bridge unavailable");
-                        return TricksterBridge.voidFragmentInstance;
+                        return TricksterReflection.voidFragmentInstance;
                     }
                     Object spellContext = args != null && args.length > 1 ? args[1] : null;
                     Iota iota = readIotaFromOffhand(spellContext);
                     if (iota == null) {
-                        return TricksterBridge.voidFragmentInstance;
+                        return TricksterReflection.voidFragmentInstance;
                     }
 
-                    Object fragment = TricksterBridge.iotaToFragment(iota, true);
-                    return fragment != null ? fragment : TricksterBridge.voidFragmentInstance;
+                    Object fragment = FragmentConverter.iotaToFragment(iota, true);
+                    return fragment != null ? fragment : TricksterReflection.voidFragmentInstance;
                 } catch (Throwable t) {
                     HexTricks.LOGGER.warn("Trickster offhand iota read trick failed", t);
-                    return TricksterBridge.voidFragmentInstance;
+                    return TricksterReflection.voidFragmentInstance;
                 }
             }
             return method.getDefaultValue();
         };
         return Proxy.newProxyInstance(
-                TricksterBridge.signatureClass.getClassLoader(),
-                new Class<?>[]{TricksterBridge.signatureClass},
+                TricksterReflection.signatureClass.getClassLoader(),
+                new Class<?>[]{TricksterReflection.signatureClass},
                 handler
         );
     }

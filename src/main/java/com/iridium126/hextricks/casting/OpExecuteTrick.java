@@ -45,12 +45,12 @@ public enum OpExecuteTrick implements Action {
             }
         }
 
-        TricksterBridge.SpellExecutionResult execution = TricksterBridge.tryExecuteBySpellData(player, trickIota.getSpellData(), params);
-        if (execution.status() == TricksterBridge.SpellExecutionStatus.COMPLETED) {
+        SpellExecutionBridge.SpellExecutionResult execution = SpellExecutionBridge.tryExecuteBySpellData(player, trickIota.getSpellData(), params);
+        if (execution.status() == SpellExecutionBridge.SpellExecutionStatus.COMPLETED) {
             Iota result = execution.result();
             return result != null ? List.of(result) : List.of();
         }
-        if (execution.status() == TricksterBridge.SpellExecutionStatus.HANDED_OFF) {
+        if (execution.status() == SpellExecutionBridge.SpellExecutionStatus.HANDED_OFF) {
             return List.of();
         }
 
