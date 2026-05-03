@@ -21,7 +21,7 @@ import java.util.regex.Pattern;
 
 public final class IotaInlineMatcher {
     private static final Pattern ENTITY_PATTERN = Pattern.compile("(?<token>[^,\\[\\]]+?)<hextricks:entity:(?<entity>[^>]+)>");
-    private static final Pattern CONTINUATION_PATTERN = Pattern.compile("<hextricks:continuation:(?<continuation>[^>]+)>");
+    private static final Pattern CONTINUATION_PATTERN = Pattern.compile("\\[Jump\\]<hextricks:continuation:(?<continuation>[^>]+)>");
     private static final ResourceLocation ENTITY_ID = HexTricks.id("entity_iota_display");
     private static final ResourceLocation CONTINUATION_ID = HexTricks.id("continuation_iota_display");
 
@@ -38,7 +38,7 @@ public final class IotaInlineMatcher {
         InlineClientAPI.INSTANCE.addMatcher(new RegexMatcher.Simple(
                 CONTINUATION_PATTERN,
                 CONTINUATION_ID,
-                match -> matchContinuationInline(match.group("continuation")),
+                match -> matchContinuationInline(),
                 MatcherInfo.fromId(CONTINUATION_ID)
         ));
     }
@@ -55,14 +55,8 @@ public final class IotaInlineMatcher {
         }
     }
 
-    private static InlineMatch matchContinuationInline(String rawContinuationPayload) {
-        try {
-            desanitizeMetadataValue(rawContinuationPayload);
-            return new InlineMatch.TextMatch(Component.literal(""));
-        } catch (Throwable t) {
-            HexTricks.LOGGER.warn("Failed to reconstruct ContinuationIota display from metadata", t);
-            return null;
-        }
+    private static InlineMatch matchContinuationInline() {
+        return new InlineMatch.TextMatch(Component.literal("[Jump]").withStyle(ChatFormatting.RED));
     }
 
     private static Component buildEntityDisplayComponent(String token, UUID entityId) {
