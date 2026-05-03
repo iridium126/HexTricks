@@ -36,7 +36,8 @@ public final class ListPatternIotaValidator {
         }
 
         int bracketDepth = 0;
-        for (char c : text.toCharArray()) {
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
             if (c == '[') {
                 bracketDepth++;
             } else if (c == ']') {

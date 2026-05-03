@@ -42,6 +42,7 @@ public final class TricksterBridge {
     private static Method numberValueMethod;
     private static Class<?> booleanFragmentClass;
     private static Method booleanFragmentOfMethod;
+    private static Method booleanFragmentAsBooleanMethod;
     private static Class<?> vectorFragmentClass;
     private static Constructor<?> vectorFragmentCtor;
     private static Method vectorXMethod;
@@ -54,12 +55,15 @@ public final class TricksterBridge {
     private static Constructor<?> entityFragmentCtor;
     private static Method entityUuidMethod;
     private static Method entityNameMethod;
+    private static Method componentLiteralMethod;
+    private static Method componentGetStringMethod;
     private static Method stringValueMethod;
     private static Class<?> stringFragmentClass;
     private static Constructor<?> stringFragmentCtor;
     static Class<?> voidFragmentClass;
     static Object voidFragmentInstance;
     private static Class<?> playerSpellSourceClass;
+    private static volatile Constructor<?> cachedPlayerSpellSourceCtor;
     private static Constructor<?> defaultSpellExecutorCtor;
     private static Method spellExecutorRunMethod;
     private static Method spellSourceGetExecutionManagerMethod;
@@ -219,6 +223,7 @@ public final class TricksterBridge {
 
             booleanFragmentClass = Class.forName("dev.enjarai.trickster.spell.fragment.BooleanFragment");
             booleanFragmentOfMethod = booleanFragmentClass.getMethod("of", boolean.class);
+            booleanFragmentAsBooleanMethod = booleanFragmentClass.getMethod("asBoolean");
 
             vectorFragmentClass = Class.forName("dev.enjarai.trickster.spell.fragment.VectorFragment");
             Class<?> vector3dcClass = Class.forName("org.joml.Vector3dc");
@@ -236,6 +241,8 @@ public final class TricksterBridge {
             entityFragmentCtor = entityFragmentClass.getConstructor(java.util.UUID.class, textClass);
             entityUuidMethod = entityFragmentClass.getMethod("uuid");
             entityNameMethod = entityFragmentClass.getMethod("name");
+            componentLiteralMethod = textClass.getMethod("literal", String.class);
+            componentGetStringMethod = textClass.getMethod("getString");
 
             stringFragmentClass = Class.forName("dev.enjarai.trickster.spell.fragment.StringFragment");
             stringFragmentCtor = stringFragmentClass.getConstructor(String.class);
@@ -245,6 +252,7 @@ public final class TricksterBridge {
             voidFragmentInstance = voidFragmentClass.getField("INSTANCE").get(null);
 
             playerSpellSourceClass = Class.forName("dev.enjarai.trickster.spell.execution.source.PlayerSpellSource");
+            cachedPlayerSpellSourceCtor = resolvePlayerSpellSourceCtor(ServerPlayer.class);
 
             Class<?> defaultSpellExecutorClass = Class.forName("dev.enjarai.trickster.spell.execution.executor.DefaultSpellExecutor");
             defaultSpellExecutorCtor = defaultSpellExecutorClass.getConstructor(spellPartClass, List.class);
@@ -306,11 +314,9 @@ public final class TricksterBridge {
         }
 
         try {
-            for (Constructor<?> ctor : playerSpellSourceClass.getConstructors()) {
-                Class<?>[] params = ctor.getParameterTypes();
-                if (params.length == 1 && params[0].isAssignableFrom(player.getClass())) {
-                    return ctor.newInstance(player);
-                }
+            Constructor<?> ctor = resolvePlayerSpellSourceCtor(player.getClass());
+            if (ctor != null) {
+                return ctor.newInstance(player);
             }
         } catch (Throwable t) {
             HexTricks.LOGGER.warn("Failed to construct Trickster PlayerSpellSource", t);
@@ -320,6 +326,30 @@ public final class TricksterBridge {
                 "No compatible PlayerSpellSource constructor found for player class {}",
                 player.getClass().getName()
         );
+        return null;
+    }
+
+    private static Constructor<?> resolvePlayerSpellSourceCtor(Class<?> playerClass) {
+        Constructor<?> cached = cachedPlayerSpellSourceCtor;
+        if (cached != null) {
+            Class<?>[] params = cached.getParameterTypes();
+            if (params.length == 1 && params[0].isAssignableFrom(playerClass)) {
+                return cached;
+            }
+        }
+
+        if (playerSpellSourceClass == null) {
+            return null;
+        }
+
+        for (Constructor<?> ctor : playerSpellSourceClass.getConstructors()) {
+            Class<?>[] params = ctor.getParameterTypes();
+            if (params.length == 1 && params[0].isAssignableFrom(playerClass)) {
+                cachedPlayerSpellSourceCtor = ctor;
+                return ctor;
+            }
+        }
+
         return null;
     }
 
@@ -398,8 +428,13 @@ public final class TricksterBridge {
 
     static Object makeTextLiteral(String text) {
         try {
+            if (componentLiteralMethod != null) {
+                return componentLiteralMethod.invoke(null, text);
+            }
+
             Class<?> textClass = Class.forName("net.minecraft.network.chat.Component");
             Method literalMethod = textClass.getMethod("literal", String.class);
+            componentLiteralMethod = literalMethod;
             return literalMethod.invoke(null, text);
         } catch (Throwable ignored) {
             return null;
@@ -586,8 +621,10 @@ public final class TricksterBridge {
             return null;
         }
         if (booleanFragmentClass.isInstance(fragment)) {
-            Method asBooleanMethod = booleanFragmentClass.getMethod("asBoolean");
-            Object value = asBooleanMethod.invoke(fragment);
+            if (booleanFragmentAsBooleanMethod == null) {
+                return null;
+            }
+            Object value = booleanFragmentAsBooleanMethod.invoke(fragment);
             if (value instanceof Boolean b) {
                 return new BooleanIota(b);
             }
@@ -620,7 +657,10 @@ public final class TricksterBridge {
                 Component entityName = null;
                 Object rawName = entityNameMethod.invoke(fragment);
                 if (rawName != null) {
-                    Object rawString = rawName.getClass().getMethod("getString").invoke(rawName);
+                    Method getStringMethod = componentGetStringMethod != null
+                            ? componentGetStringMethod
+                            : rawName.getClass().getMethod("getString");
+                    Object rawString = getStringMethod.invoke(rawName);
                     if (rawString instanceof String s) {
                         entityName = Component.literal(s);
                     }
