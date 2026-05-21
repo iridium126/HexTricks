@@ -3,6 +3,7 @@
   "package": "com.iridium126.hextricks.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "ConstructBlockEntityMediaMixin",
     "StringFragmentMixin"
   ],
   "client": [

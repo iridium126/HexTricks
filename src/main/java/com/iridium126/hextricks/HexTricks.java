@@ -7,6 +7,7 @@ import com.iridium126.hextricks.casting.HexTricksIotaTypes;
 import com.iridium126.hextricks.casting.ReadIotaOffhandTrickRegister;
 import com.iridium126.hextricks.casting.RunListPatternIotaStringTrickRegister;
 import com.iridium126.hextricks.casting.HexTricksActions;
+import com.iridium126.hextricks.compat.ConstructAutomationCompat;
 import com.iridium126.hextricks.inline.ModInlineDataTypes;
 
 import at.petrak.hexcasting.common.lib.HexRegistries;
@@ -36,6 +37,7 @@ public class HexTricks {
         ReadIotaOffhandTrickRegister.register();
         RunListPatternIotaStringTrickRegister.register();
         ModInlineDataTypes.init();
+        ConstructAutomationCompat.register(modEventBus);
 
         // Register the item to a creative tab
         //modEventBus.addListener(this::addCreative);
