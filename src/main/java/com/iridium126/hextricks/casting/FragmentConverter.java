@@ -150,9 +150,15 @@ public final class FragmentConverter {
             if (value instanceof String s && ListPatternIotaValidator.isListOrPatternIotaDisplay(s)) {
                 return ListPatternIotaParser.restoreFromDisplay(s).orElse(new NullIota());
             }
-            return new NullIota();
         }
-        return new NullIota();
+        String spellData = null;
+        if (TricksterReflection.ensureReadInit()) {
+            Object base64 = TricksterReflection.fragmentToBase64Method.invoke(fragment);
+            if (base64 instanceof String s && !s.isBlank()) {
+                spellData = s;
+            }
+        }
+        return new TrickIota(spellData);
     }
 
     private static String augmentReservedListDisplay(ListIota list, String display) {
