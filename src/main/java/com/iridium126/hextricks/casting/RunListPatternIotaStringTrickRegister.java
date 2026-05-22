@@ -1,7 +1,9 @@
 package com.iridium126.hextricks.casting;
 
 import at.petrak.hexcasting.api.casting.eval.ExecutionClientView;
+import at.petrak.hexcasting.api.casting.eval.CastingEnvironment;
 import at.petrak.hexcasting.api.casting.eval.env.StaffCastEnv;
+import com.iridium126.hextricks.casting.env.ConstructCastEnv;
 import at.petrak.hexcasting.api.casting.eval.vm.CastingImage;
 import at.petrak.hexcasting.api.casting.eval.vm.CastingVM;
 import at.petrak.hexcasting.api.casting.iota.Iota;
@@ -10,8 +12,10 @@ import at.petrak.hexcasting.api.casting.iota.NullIota;
 import com.iridium126.hextricks.HexTricks;
 import com.iridium126.hextricks.util.ListPatternIotaParser;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.level.block.entity.BlockEntity;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -182,21 +186,48 @@ public final class RunListPatternIotaStringTrickRegister {
     }
 
     private static Iota runRestoredIota(Object spellContext, Iota restoredIota, List<Iota> initialStack) {
-        ServerPlayer player = TricksterReflection.resolveCasterPlayer(spellContext);
-        if (player == null) return null;
+        Optional<BlockEntity> construct = TricksterReflection.resolveConstructBlockEntity(spellContext);
+        if (construct.isPresent()) {
+            Optional<ServerLevel> level = TricksterReflection.resolveConstructLevel(spellContext);
+            if (level.isEmpty()) {
+                return null;
+            }
+            return runRestoredIota(level.get(), new ConstructCastEnv(level.get(), construct.get()), restoredIota, initialStack);
+        }
 
+        ServerPlayer player = TricksterReflection.resolveCasterPlayer(spellContext);
+        if (player == null) {
+            return null;
+        }
+
+        return runRestoredIota(
+                player.serverLevel(),
+                new StaffCastEnv(player, InteractionHand.MAIN_HAND),
+                restoredIota,
+                initialStack
+        );
+    }
+
+    private static Iota runRestoredIota(
+            ServerLevel level,
+            CastingEnvironment environment,
+            Iota restoredIota,
+            List<Iota> initialStack
+    ) {
         try {
             CastingImage image = new CastingImage(new ArrayList<>(initialStack), 0, List.of(), false, 0, new CompoundTag());
-            CastingVM vm = new CastingVM(image, new StaffCastEnv(player, InteractionHand.MAIN_HAND));
-            ExecutionClientView result = (restoredIota instanceof ListIota list) ? 
-                    vm.queueExecuteAndWrapIotas(listEntries(list), player.serverLevel()) : 
-                    vm.queueExecuteAndWrapIota(restoredIota, player.serverLevel());
+            CastingVM vm = new CastingVM(image, environment);
+            ExecutionClientView result = restoredIota instanceof ListIota list
+                    ? vm.queueExecuteAndWrapIotas(listEntries(list), level)
+                    : vm.queueExecuteAndWrapIota(restoredIota, level);
 
-            if (!result.getResolutionType().getSuccess()) return null;
+            if (!result.getResolutionType().getSuccess()) {
+                return null;
+            }
             List<Iota> stack = result.getStackDescs();
             return stack.isEmpty() ? new NullIota() : stack.getLast();
         } catch (Throwable t) {
-            HexTricks.LOGGER.warn("Failed to run restored Hex iota", t);
+            HexTricks.LOGGER.warn("Failed to run restored Hex iota from {}", environment.getClass().getSimpleName(), t);
             return null;
         }
     }

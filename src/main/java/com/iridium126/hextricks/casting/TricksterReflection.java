@@ -1,6 +1,9 @@
 package com.iridium126.hextricks.casting;
 
+import com.iridium126.hextricks.compat.ConstructMediaStorage;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.block.entity.BlockEntity;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -39,6 +42,8 @@ public final class TricksterReflection {
     static Method asTextMethod;
     static Method componentGetStringMethod;
     static Method spellContextSourceMethod;
+    static Class<?> blockSpellSourceClass;
+    static Field blockSpellSourceBlockEntityField;
     static Method spellSourceGetPlayerMethod;
     static Method spellContextStateMethod;
     static Method executionStateGetArgumentsMethod;
@@ -124,6 +129,8 @@ public final class TricksterReflection {
             spellContextStateMethod = spellContextClass.getMethod("state");
 
             Class<?> spellSourceClass = Class.forName("dev.enjarai.trickster.spell.execution.source.SpellSource");
+            blockSpellSourceClass = Class.forName("dev.enjarai.trickster.spell.execution.source.BlockSpellSource");
+            blockSpellSourceBlockEntityField = blockSpellSourceClass.getField("blockEntity");
             spellSourceGetPlayerMethod = spellSourceClass.getMethod("getPlayer");
 
             Class<?> executionStateClass = Class.forName("dev.enjarai.trickster.spell.execution.ExecutionState");
@@ -271,5 +278,31 @@ public final class TricksterReflection {
         } catch (Throwable ignored) {
         }
         return null;
+    }
+
+    static Optional<BlockEntity> resolveConstructBlockEntity(Object spellContext) {
+        if (spellContext == null || spellContextSourceMethod == null || blockSpellSourceClass == null
+                || blockSpellSourceBlockEntityField == null) {
+            return Optional.empty();
+        }
+        try {
+            Object source = spellContextSourceMethod.invoke(spellContext);
+            if (source == null || !blockSpellSourceClass.isInstance(source)) {
+                return Optional.empty();
+            }
+            Object blockEntity = blockSpellSourceBlockEntityField.get(source);
+            if (blockEntity instanceof BlockEntity entity && ConstructMediaStorage.isConstruct(entity)) {
+                return Optional.of(entity);
+            }
+        } catch (Throwable ignored) {
+        }
+        return Optional.empty();
+    }
+
+    static Optional<ServerLevel> resolveConstructLevel(Object spellContext) {
+        return resolveConstructBlockEntity(spellContext)
+                .map(BlockEntity::getLevel)
+                .filter(ServerLevel.class::isInstance)
+                .map(ServerLevel.class::cast);
     }
 }
