@@ -3,10 +3,12 @@
   "package": "com.iridium126.hextricks.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "BlockEntitySlateKnotMixin",
     "ConstructBlockEntityMediaMixin",
     "StringFragmentMixin"
   ],
   "client": [
+    "BlockEntitySlateRendererMixin",
     "FragmentRendererMixin"
   ],
   "injectors": {
