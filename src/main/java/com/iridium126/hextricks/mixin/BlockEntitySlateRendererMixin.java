@@ -37,7 +37,8 @@ public abstract class BlockEntitySlateRendererMixin {
         poseStack.pushPose();
         translateToSlateFace(poseStack, normal);
         rotateToSlateFace(poseStack, normal);
-        poseStack.scale(0.35f, 0.35f, 0.35f);
+        poseStack.scale(0.4f, 0.4f, 0.4f);
+        poseStack.mulPose(Axis.YP.rotation(animationTime(slate, partialTick) * 0.1f));
         Minecraft.getInstance().getItemRenderer().renderStatic(
                 knot,
                 ItemDisplayContext.GROUND,
@@ -49,6 +50,13 @@ public abstract class BlockEntitySlateRendererMixin {
                 0
         );
         poseStack.popPose();
+    }
+
+    private static float animationTime(BlockEntitySlate slate, float partialTick) {
+        if (slate.getLevel() == null) {
+            return partialTick;
+        }
+        return slate.getLevel().getGameTime() + partialTick;
     }
 
     private static Direction getNormal(BlockState state) {
