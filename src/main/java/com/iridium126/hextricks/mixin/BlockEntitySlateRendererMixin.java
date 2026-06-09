@@ -37,8 +37,8 @@ public abstract class BlockEntitySlateRendererMixin {
         poseStack.pushPose();
         translateToSlateFace(poseStack, normal);
         rotateToSlateFace(poseStack, normal);
-        poseStack.scale(0.4f, 0.4f, 0.4f);
-        poseStack.mulPose(Axis.YP.rotation(animationTime(slate, partialTick) * 0.1f));
+        poseStack.scale(0.8f, 0.8f, 0.8f);
+        poseStack.mulPose(Axis.YP.rotation(animationTime(slate, partialTick) * 0.1f + (float) java.lang.Math.PI / 2.0f));
         Minecraft.getInstance().getItemRenderer().renderStatic(
                 knot,
                 ItemDisplayContext.GROUND,
@@ -75,12 +75,12 @@ public abstract class BlockEntitySlateRendererMixin {
         double y = 0.5;
         double z = 0.5;
         switch (normal) {
-            case DOWN -> y = 0.92;
-            case UP -> y = 0.08;
-            case NORTH -> z = 0.08;
-            case SOUTH -> z = 0.92;
-            case WEST -> x = 0.08;
-            case EAST -> x = 0.92;
+            case DOWN -> y = 0.6;
+            case UP -> y = 0.4;
+            case NORTH -> z = 0.6;
+            case SOUTH -> z = 0.4;
+            case WEST -> x = 0.6;
+            case EAST -> x = 0.4;
         }
         poseStack.translate(x, y, z);
     }
@@ -88,10 +88,10 @@ public abstract class BlockEntitySlateRendererMixin {
     private static void rotateToSlateFace(PoseStack poseStack, Direction normal) {
         switch (normal) {
             case DOWN -> poseStack.mulPose(Axis.XP.rotationDegrees(180.0f));
-            case NORTH -> poseStack.mulPose(Axis.XP.rotationDegrees(90.0f));
-            case SOUTH -> poseStack.mulPose(Axis.XP.rotationDegrees(-90.0f));
-            case WEST -> poseStack.mulPose(Axis.ZP.rotationDegrees(-90.0f));
-            case EAST -> poseStack.mulPose(Axis.ZP.rotationDegrees(90.0f));
+            case NORTH -> poseStack.mulPose(Axis.XP.rotationDegrees(-90.0f));
+            case SOUTH -> poseStack.mulPose(Axis.XP.rotationDegrees(90.0f));
+            case WEST -> poseStack.mulPose(Axis.ZP.rotationDegrees(90.0f));
+            case EAST -> poseStack.mulPose(Axis.ZP.rotationDegrees(-90.0f));
             case UP -> {
             }
         }
