@@ -44,6 +44,7 @@ public final class TricksterReflection {
     static Method spellContextSourceMethod;
     static Class<?> blockSpellSourceClass;
     static Field blockSpellSourceBlockEntityField;
+    static Class<?> spellSourceClass;
     static Method spellSourceGetPlayerMethod;
     static Method spellContextStateMethod;
     static Method executionStateGetArgumentsMethod;
@@ -58,6 +59,8 @@ public final class TricksterReflection {
     static Object voidFragmentInstance;
     static Class<?> playerSpellSourceClass;
     static volatile Constructor<?> cachedPlayerSpellSourceCtor;
+    static Class<?> mutableManaPoolClass;
+    static Constructor<?> cachedInventoryManaPoolCtor;
     static Constructor<?> defaultSpellExecutorCtor;
     static Method spellExecutorRunMethod;
     static Method spellSourceGetExecutionManagerMethod;
@@ -128,7 +131,7 @@ public final class TricksterReflection {
             spellContextSourceMethod = spellContextClass.getMethod("source");
             spellContextStateMethod = spellContextClass.getMethod("state");
 
-            Class<?> spellSourceClass = Class.forName("dev.enjarai.trickster.spell.execution.source.SpellSource");
+            spellSourceClass = Class.forName("dev.enjarai.trickster.spell.execution.source.SpellSource");
             blockSpellSourceClass = Class.forName("dev.enjarai.trickster.spell.execution.source.BlockSpellSource");
             blockSpellSourceBlockEntityField = blockSpellSourceClass.getField("blockEntity");
             spellSourceGetPlayerMethod = spellSourceClass.getMethod("getPlayer");
@@ -154,6 +157,9 @@ public final class TricksterReflection {
 
             playerSpellSourceClass = Class.forName("dev.enjarai.trickster.spell.execution.source.PlayerSpellSource");
             cachedPlayerSpellSourceCtor = resolvePlayerSpellSourceCtor(ServerPlayer.class);
+            mutableManaPoolClass = Class.forName("dev.enjarai.trickster.spell.mana.MutableManaPool");
+            Class<?> cachedInventoryManaPoolClass = Class.forName("dev.enjarai.trickster.spell.mana.CachedInventoryManaPool");
+            cachedInventoryManaPoolCtor = cachedInventoryManaPoolClass.getConstructor(net.minecraft.world.Container.class);
 
             Class<?> defaultSpellExecutorClass = Class.forName("dev.enjarai.trickster.spell.execution.executor.DefaultSpellExecutor");
             defaultSpellExecutorCtor = defaultSpellExecutorClass.getConstructor(spellPartClass, List.class);

@@ -45,7 +45,7 @@ public enum OpExecuteTrick implements Action {
             }
         }
 
-        SpellExecutionBridge.SpellExecutionResult execution = SpellExecutionBridge.tryExecuteBySpellData(player, trickIota.getSpellData(), params);
+        SpellExecutionBridge.SpellExecutionResult execution = SpellExecutionBridge.tryExecuteBySpellData(player, trickIota.getSpellData(), params, env);
         if (execution.status() == SpellExecutionBridge.SpellExecutionStatus.COMPLETED) {
             Iota result = execution.result();
             return result != null ? List.of(result) : List.of();

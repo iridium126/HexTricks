@@ -1,6 +1,8 @@
 package com.iridium126.hextricks.casting;
 
 import at.petrak.hexcasting.api.casting.iota.Iota;
+import at.petrak.hexcasting.api.casting.eval.CastingEnvironment;
+import at.petrak.hexcasting.api.casting.eval.env.CircleCastEnv;
 import com.iridium126.hextricks.HexTricks;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -44,6 +46,15 @@ public final class SpellExecutionBridge {
     }
 
     static SpellExecutionResult tryExecuteBySpellData(ServerPlayer player, String spellData, List<Iota> arguments) {
+        return tryExecuteBySpellData(player, spellData, arguments, null);
+    }
+
+    static SpellExecutionResult tryExecuteBySpellData(
+            ServerPlayer player,
+            String spellData,
+            List<Iota> arguments,
+            CastingEnvironment env
+    ) {
         try {
             if (!TricksterReflection.ensureExecuteInit() || spellData == null || spellData.isBlank()) return SpellExecutionResult.failed();
             Object decoded = TricksterReflection.fragmentFromBase64Method.invoke(null, spellData);
@@ -52,6 +63,9 @@ public final class SpellExecutionBridge {
             Object spellPart = TricksterReflection.spellPartClass.isInstance(decoded) ? decoded : TricksterReflection.spellPartCtor.newInstance(decoded);
             Object source = newPlayerSpellSource(player);
             if (source == null) return SpellExecutionResult.failed();
+            if (env instanceof CircleCastEnv circleEnv) {
+                source = CircleSlateSpellSource.wrap(source, circleEnv);
+            }
 
             List<Object> tricksterArgs = new ArrayList<>(arguments.size());
             for (Iota arg : arguments) {
