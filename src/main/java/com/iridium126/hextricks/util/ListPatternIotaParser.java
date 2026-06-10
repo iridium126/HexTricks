@@ -27,7 +27,6 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 public final class ListPatternIotaParser {
-    private static final Pattern FORMATTING_CODE_REGEX = Pattern.compile("(?i)\\u00A7[0-9A-FK-OR]");
     private static final Pattern NUMBER_TOKEN_REGEX = Pattern.compile("[-+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][-+]?\\d+)?");
     private static final Pattern VEC3_TOKEN_REGEX = Pattern.compile(
             "^\\(\\s*([-+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][-+]?\\d+)?)\\s*,\\s*([-+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][-+]?\\d+)?)\\s*,\\s*([-+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][-+]?\\d+)?)\\s*\\)$"
@@ -137,7 +136,7 @@ public final class ListPatternIotaParser {
 
         MetadataToken metadataToken = extractTrailingMetadata(normalized, ENTITY_METADATA_PREFIX);
         if (metadataToken != null) {
-            String decodedEntityId = desanitizeMetadataValue(metadataToken.metadataValue());
+            String decodedEntityId = MetadataEscaper.desanitize(metadataToken.metadataValue());
             UUID uuid;
             try {
                 uuid = UUID.fromString(decodedEntityId);
@@ -320,7 +319,7 @@ public final class ListPatternIotaParser {
     }
 
     private static SpellContinuation parseContinuationPayload(String rawPayload) {
-        String payload = desanitizeMetadataValue(rawPayload).trim();
+        String payload = MetadataEscaper.desanitize(rawPayload).trim();
         if (payload.isEmpty()) {
             return null;
         }
@@ -361,18 +360,6 @@ public final class ListPatternIotaParser {
 
         String metadataValue = token.substring(valueStart, valueEnd);
         return new MetadataToken(displayToken, metadataValue);
-    }
-
-    private static String desanitizeMetadataValue(String value) {
-        return value
-                .replace("\\u002C", ",")
-                .replace("\\u005B", "[")
-                .replace("\\u005D", "]")
-                .replace("\\u003C", "<")
-                .replace("\\u003E", ">")
-                .replace("\\r", "\r")
-                .replace("\\n", "\n")
-                .replace("\\\\", "\\");
     }
 
     private static TrickIota parseTrickToken(String token) {
@@ -417,7 +404,7 @@ public final class ListPatternIotaParser {
     }
 
     private static String normalizeToken(String token) {
-        return FORMATTING_CODE_REGEX.matcher(token).replaceAll("").trim();
+        return DisplayTextUtil.normalizeToken(token);
     }
 
     private static int skipDelimiters(String content, int index) {

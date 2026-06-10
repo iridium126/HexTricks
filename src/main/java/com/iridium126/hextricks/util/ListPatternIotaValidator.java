@@ -4,7 +4,6 @@ import org.jetbrains.annotations.NotNull;
 import java.util.regex.Pattern;
 
 public final class ListPatternIotaValidator {
-    private static final Pattern FORMATTING_CODE_REGEX = Pattern.compile("(?i)\\u00A7[0-9A-FK-OR]");
     private static final Pattern PATTERN_IOTA_REGEX = Pattern.compile(
             "^(.* )?HexPattern\\[[A-Z_]+, [aqweds]*\\]$"
     );
@@ -13,7 +12,7 @@ public final class ListPatternIotaValidator {
     }
 
     public static boolean isListOrPatternIotaDisplay(@NotNull String input) {
-        String stripped = FORMATTING_CODE_REGEX.matcher(input).replaceAll("");
+        String stripped = DisplayTextUtil.stripFormatting(input);
         
         if (PATTERN_IOTA_REGEX.matcher(stripped).matches()) {
             return true;
@@ -23,7 +22,7 @@ public final class ListPatternIotaValidator {
     }
 
     public static boolean isListIotaDisplay(@NotNull String input) {
-        String stripped = FORMATTING_CODE_REGEX.matcher(input).replaceAll("");
+        String stripped = DisplayTextUtil.stripFormatting(input);
         return isListIotaPureText(stripped);
     }
 

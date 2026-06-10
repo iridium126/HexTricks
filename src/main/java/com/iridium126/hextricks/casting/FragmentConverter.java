@@ -5,6 +5,7 @@ import at.petrak.hexcasting.api.casting.iota.*;
 import com.iridium126.hextricks.HexTricks;
 import com.iridium126.hextricks.util.ListPatternIotaParser;
 import com.iridium126.hextricks.util.ListPatternIotaValidator;
+import com.iridium126.hextricks.util.MetadataEscaper;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.Vec3;
@@ -188,14 +189,14 @@ public final class FragmentConverter {
             String entityId = String.valueOf(entityIota.getEntityId());
             insertions.add(new DisplayMetadataInsertion(
                     entityIota.display().getString(),
-                    LIST_ENTITY_METADATA_PREFIX + sanitizeMetadataValue(entityId) + LIST_METADATA_SUFFIX
+                    LIST_ENTITY_METADATA_PREFIX + MetadataEscaper.sanitize(entityId) + LIST_METADATA_SUFFIX
             ));
         }
         if (iota instanceof ContinuationIota continuationIota) {
             String continuationPayload = serializeContinuationMetadata(continuationIota.getContinuation());
             insertions.add(new DisplayMetadataInsertion(
                     iota.display().getString(),
-                    LIST_CONTINUATION_METADATA_PREFIX + sanitizeMetadataValue(continuationPayload) + LIST_METADATA_SUFFIX
+                    LIST_CONTINUATION_METADATA_PREFIX + MetadataEscaper.sanitize(continuationPayload) + LIST_METADATA_SUFFIX
             ));
         }
         if (iota instanceof ListIota listIota) {
@@ -216,13 +217,6 @@ public final class FragmentConverter {
             HexTricks.LOGGER.warn("Failed to encode continuation metadata", t);
         }
         return String.valueOf(continuation);
-    }
-
-    private static String sanitizeMetadataValue(String value) {
-        if (value == null) return "null";
-        return value.replace("\\", "\\\\").replace("\r", "\\r").replace("\n", "\\n")
-                .replace(",", "\\u002C").replace("[", "\\u005B").replace("]", "\\u005D")
-                .replace("<", "\\u003C").replace(">", "\\u003E");
     }
 
     static net.minecraft.world.entity.Entity resolveServerEntity(UUID entityId) {

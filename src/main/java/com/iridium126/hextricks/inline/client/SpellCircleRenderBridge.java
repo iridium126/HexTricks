@@ -6,6 +6,8 @@ import net.minecraft.world.phys.Vec3;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 final class SpellCircleRenderBridge {
@@ -14,6 +16,7 @@ final class SpellCircleRenderBridge {
 
     private static Object renderer;
     private static Method renderPartMethod;
+    private static final Map<MethodKey, Method> METHOD_CACHE = new ConcurrentHashMap<>();
 
     private SpellCircleRenderBridge() {
     }
@@ -96,9 +99,10 @@ final class SpellCircleRenderBridge {
         }
         for (String name : names) {
             try {
-                Method method = target.getClass().getMethod(name);
+                Method method = cachedMethod(target.getClass(), name, 0);
                 return method.invoke(target);
             } catch (Throwable ignored) {
+                METHOD_CACHE.remove(new MethodKey(target.getClass(), name, 0));
             }
         }
         return null;
@@ -108,16 +112,41 @@ final class SpellCircleRenderBridge {
         if (target == null) {
             return false;
         }
+        MethodKey key = new MethodKey(target.getClass(), name, args.length);
+        Method cached = METHOD_CACHE.get(key);
+        if (cached != null) {
+            try {
+                cached.invoke(target, args);
+                return true;
+            } catch (Throwable ignored) {
+                METHOD_CACHE.remove(key);
+            }
+        }
         for (Method method : target.getClass().getMethods()) {
             if (!method.getName().equals(name) || method.getParameterCount() != args.length) {
                 continue;
             }
             try {
                 method.invoke(target, args);
+                METHOD_CACHE.put(key, method);
                 return true;
             } catch (Throwable ignored) {
             }
         }
         return false;
+    }
+
+    private static Method cachedMethod(Class<?> owner, String name, int argCount) throws NoSuchMethodException {
+        MethodKey key = new MethodKey(owner, name, argCount);
+        Method cached = METHOD_CACHE.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        Method resolved = owner.getMethod(name);
+        METHOD_CACHE.put(key, resolved);
+        return resolved;
+    }
+
+    private record MethodKey(Class<?> owner, String name, int argCount) {
     }
 }

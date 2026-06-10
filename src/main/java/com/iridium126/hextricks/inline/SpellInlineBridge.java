@@ -3,7 +3,9 @@ package com.iridium126.hextricks.inline;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public final class SpellInlineBridge {
@@ -16,13 +18,37 @@ public final class SpellInlineBridge {
     private static Constructor<?> spellPartCtor;
     private static Method spellPartSubPartsMethod;
     private static Field spellPartSubPartsField;
+    private static final int MAX_DECODE_CACHE_SIZE = 128;
+    private static final Map<String, Optional<Object>> DECODE_CACHE = new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Optional<Object>> eldest) {
+            return size() > MAX_DECODE_CACHE_SIZE;
+        }
+    };
 
     private SpellInlineBridge() {
     }
 
     public static Optional<Object> decodeSpellPart(String base64) {
+        if (base64 == null || base64.isBlank()) {
+            return Optional.empty();
+        }
+        synchronized (DECODE_CACHE) {
+            Optional<Object> cached = DECODE_CACHE.get(base64);
+            if (cached != null) {
+                return cached;
+            }
+        }
+        Optional<Object> decoded = decodeSpellPartUncached(base64);
+        synchronized (DECODE_CACHE) {
+            DECODE_CACHE.put(base64, decoded);
+        }
+        return decoded;
+    }
+
+    private static Optional<Object> decodeSpellPartUncached(String base64) {
         try {
-            if (!ensureInit() || base64 == null || base64.isBlank()) {
+            if (!ensureInit()) {
                 return Optional.empty();
             }
             Object fragment = fragmentFromBase64Method.invoke(null, base64);

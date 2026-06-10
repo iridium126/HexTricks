@@ -1,6 +1,7 @@
 package com.iridium126.hextricks.inline.client;
 
 import com.iridium126.hextricks.HexTricks;
+import com.iridium126.hextricks.util.MetadataEscaper;
 import com.samsthenerd.inline.api.InlineAPI;
 import com.samsthenerd.inline.api.data.EntityInlineData;
 import com.samsthenerd.inline.api.data.PlayerHeadData;
@@ -45,7 +46,7 @@ public final class IotaInlineMatcher {
 
     private static InlineMatch matchEntityInline(String token, String rawEntityId) {
         try {
-            String decodedEntityId = desanitizeMetadataValue(rawEntityId);
+            String decodedEntityId = MetadataEscaper.desanitize(rawEntityId);
             UUID entityId = UUID.fromString(decodedEntityId);
             Component component = buildEntityDisplayComponent(token, entityId);
             return new InlineMatch.TextMatch(component);
@@ -95,17 +96,5 @@ public final class IotaInlineMatcher {
             }
         }
         return null;
-    }
-
-    private static String desanitizeMetadataValue(String value) {
-        return value
-                .replace("\\u002C", ",")
-                .replace("\\u005B", "[")
-                .replace("\\u005D", "]")
-                .replace("\\u003C", "<")
-                .replace("\\u003E", ">")
-                .replace("\\r", "\r")
-                .replace("\\n", "\n")
-                .replace("\\\\", "\\");
     }
 }
