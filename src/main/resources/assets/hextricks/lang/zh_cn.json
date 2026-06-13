@@ -1,0 +1,19 @@
+{
+  "hextricks.iota.trick": "戏法：",
+  "trickster.trick.hextricks.read_iota_offhand": "读取副手 Iota",
+  "trickster.trick.hextricks.run_list_pattern_iota_string": "运行列表/图案 Iota 字符串",
+  "trickster.trick.trickster.read_iota_offhand": "读取副手 Iota",
+  "trickster.trick.trickster.run_list_pattern_iota_string": "运行列表/图案 Iota 字符串",
+  "hexcasting.action.hextricks:trick/execute": "执行 Trick Iota",
+  "hexcasting.action.hextricks:trick/read": "从物品读取 Trick",
+  "hexcasting.mishap.bad_item.trick.read": "刻写了 Trickster 法术的物品",
+  "hexcasting.mishap.invalid_value.class.hextricks_trick": "一个 Trick Iota",
+  "hextricks.entry.hextricks": "Hex Tricks",
+  "hextricks.page.hextricks.intro": "Trickster 法术与 Hex Casting 图案可以通过 iota 彼此沟通。这些图案会把已刻写的 Trickster 片段桥接进 Hex Casting，并产生一种存储 Trickster 法术的新 iota。",
+  "hextricks.page.hextricks.read": "从另一只手中的物品读取 Trickster 法术片段，并将其压入栈中作为 Trick Iota。副手物品必须是 Trickster 能读取已刻写片段的物品，例如写好的卷轴或其他合适的法术物品。",
+  "hextricks.page.hextricks.execute": "接受一个 Trick Iota 和一个 Hex 参数列表，以施法者身份执行其中存储的 Trickster 法术，并把返回的片段转换回 Hex iota 后压栈。若执行失败或没有可用返回值，则不会压入任何内容。",
+  "hextricks.page.hextricks.trick_iota.title": "Trick Iota",
+  "hextricks.page.hextricks.trick_iota": "Trick Iota 包含 Trickster 法术数据。它会显示为 $(thing)戏法$()，后接编码后的法术载荷，并且能像其他 iota 一样存在于 Hex 栈中。若想重复运行同一个 Trickster 法术，请保持它完整。",
+  "hextricks.page.hextricks.bridge_notes.title": "跨越桥梁",
+  "hextricks.page.hextricks.bridge_notes": "数字、布尔值、向量、实体、列表、图案以及类似 void 的值会在可能时于两个系统之间转换。返回 Trickster 时，列表和图案可能变成显示字符串，以便稍后还原 Hex 结构。"
+}
