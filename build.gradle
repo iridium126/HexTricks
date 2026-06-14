@@ -31,8 +31,25 @@ sourceSets.main.resources {
 
 repositories {
     // Add here additional repositories if required by some of the dependencies below.
-    flatDir {
-        dirs "libs"
+    ivy {
+        url = uri("https://ci.blamejared.com/job/petrakat/job/Hexcasting/job/1.21/15/artifact/Neoforge/build/libs")
+        
+        patternLayout {
+            artifact "[artifact].[ext]"
+        }
+        metadataSources {
+            artifact() // 直接按文件名匹配，不读取pom/ivy元数据
+        }
+    }
+    ivy {
+        url = uri("https://ci.blamejared.com/job/petrakat/job/PAUCAL/job/1.21/27/artifact/Neoforge/build/libs")
+        
+        patternLayout {
+            artifact "[artifact].[ext]"
+        }
+        metadataSources {
+            artifact() // 直接按文件名匹配，不读取pom/ivy元数据
+        }
     }
     mavenLocal()
     maven { url = "https://cursemaven.com" }
@@ -153,8 +170,8 @@ dependencies {
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
 
-    implementation files("libs/hexcasting-neoforge-1.21.1-0.12.0-devel.jar")
-    implementation files("libs/paucal-0.7.1-pre-26+1.21.1-neoforge.jar")
+    implementation "hexcasting:hexcasting-neoforge-1.21.1-0.12.0-devel-pre-15@jar"
+    implementation "paucal:paucal-0.7.1-pre-27+1.21.1-neoforge@jar"
     implementation "curse.maven:caelus-308989:5694215"
     implementation "curse.maven:inline-971167:6556868"
     implementation "curse.maven:patchouli-306770:7730942"

@@ -21,7 +21,7 @@ final class CircleSlateSpellSource {
                 return delegate;
             }
 
-            SlateKnotInventory inventory = SlateKnotInventory.forCircle(level, env.circleState().knownPositions);
+            SlateKnotInventory inventory = SlateKnotInventory.forCircle(level, env.circleState().reachedPositions);
             Object pool = TricksterReflection.cachedInventoryManaPoolCtor.newInstance(inventory);
             Object syncingPool = Proxy.newProxyInstance(
                     TricksterReflection.mutableManaPoolClass.getClassLoader(),

@@ -13,15 +13,16 @@
 #### **双向法术互调用**
 
 **HexCasting → Trickster**
-- 在 HexCasting 法术中直接调用并执行 Trickster 法术片段
+- 在 HexCasting 法术中直接执行 Trickster 法术片段
 - 支持完整的参数传递和返回值接收
 - 完整支持 Trickster 的异步/延迟法术执行机制
+- 在法术环施法环境执行 Trickster 法术片段
 
 **Trickster → HexCasting**
 - 在 Trickster 法术中执行 HexCasting 法术
 - 从副手读取 HexCasting Iota 数据
 - 支持单个/列表形式的 Hex 图案执行
-- 法术组构台方块原生施法环境
+- 法术组构台方块施法环境
 
 #### **双向类型转换**
 - **HexCasting Iota ↔ Trickster Fragment**
@@ -30,10 +31,14 @@
   - 未知类型自动包装，保证类型安全
 
 #### **法术组构台施法环境**
-- Trickster 法术构造方块原生支持 HexCasting
-- 自动魔力抽取与消耗
+- Trickster 法术组构台和模块化法术组构台运行 HexCasting 法术
+- 像促动石一样使用组构台中存储的媒质
 - 32 格施法范围，与玩家一致
 - 完整的粒子效果与声音播放
+
+#### **法术环施法环境**
+- HexCasting 法术环执行 Trickster 法术片段
+- 使用石板上放置的晶结作为魔力来源
 
 ---
 

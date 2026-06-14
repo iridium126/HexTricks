@@ -113,12 +113,12 @@ public final class ConstructCastEnv extends CastingEnvironment {
     }
 
     @Override
-    protected List<ItemStack> getUsableStacks(StackDiscoveryMode mode) {
+    public List<ItemStack> getUsableStacks(StackDiscoveryMode mode) {
         return new ArrayList<>();
     }
 
     @Override
-    protected List<HeldItemInfo> getPrimaryStacks() {
+    public List<HeldItemInfo> getPrimaryStacks() {
         return List.of();
     }
 
